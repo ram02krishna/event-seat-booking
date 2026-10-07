@@ -7,11 +7,47 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  test-and-build:
+    name: Lint, Test, Concurrency Benchmark & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: event_seat_booking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 4000
+      CLIENT_URL: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/event_seat_booking_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci_super_secret_jwt_key_12345_min32chars
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install pnpm
@@ -19,7 +55,7 @@ jobs:
         with:
           version: 10
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,14 +64,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run linter
+      - name: Run code quality checks (lint)
         run: pnpm lint
 
-      - name: Typecheck
+      - name: Typecheck monorepo
         run: pnpm typecheck
 
-      - name: Run tests
+      - name: Setup database schema
+        run: |
+          pnpm --filter api prisma:generate
+          pnpm --filter api prisma db push
+          pnpm --filter api prisma:seed
+
+      - name: Run unit and integration tests
         run: pnpm test
 
-      - name: Build packages and apps
+      - name: Run concurrency & zero double-booking benchmark
+        run: pnpm test:load
+
+      - name: Build packages and production bundles
         run: pnpm build

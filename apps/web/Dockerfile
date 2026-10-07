@@ -18,7 +18,7 @@ RUN pnpm --filter @repo/shared build
 RUN pnpm --filter web build
 
 # Stage 3: Runner
-FROM node:20-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
