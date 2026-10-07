@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Users } from 'lucide-react';
-import { CURRENCY_SYMBOL } from '@/lib/format';
+import { formatINR } from '@/lib/format';
 
 interface EventItem {
   id: string;
@@ -15,6 +15,7 @@ interface EventItem {
   venue: { id: string; name: string };
   totalSeats: number;
   availableSeats: number;
+  minPrice?: number;
 }
 
 export default function HomePage() {
@@ -50,12 +51,20 @@ export default function HomePage() {
       ) : isError ? (
         <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/20 text-center space-y-1">
           <p className="text-rose-400 text-sm font-medium">Could not load events.</p>
-          <p className="text-slate-500 text-xs">Make sure the API server is running on port 4000.</p>
+          <p className="text-slate-500 text-xs">Please ensure the backend API server is online.</p>
         </div>
       ) : events.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-1">
-          <p className="text-slate-300 text-sm">No events available.</p>
-          <p className="text-slate-500 text-xs">Run the seed script to generate sample events.</p>
+        <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
+          <p className="text-slate-300 text-sm font-semibold">No upcoming events scheduled right now.</p>
+          <p className="text-slate-500 text-xs max-w-sm mx-auto">
+            Check back soon for new concerts, conferences, and live seated performances.
+          </p>
+          <Link
+            href="/login"
+            className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+          >
+            Organizer Sign In
+          </Link>
         </div>
       ) : (
         <div className="space-y-4">
@@ -120,7 +129,9 @@ export default function HomePage() {
                 <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2 shrink-0">
                   <div className="text-right">
                     <span className="text-[10px] uppercase tracking-wider text-slate-500 block">From</span>
-                    <span className="text-lg font-bold text-white font-mono">{CURRENCY_SYMBOL}750</span>
+                    <span className="text-lg font-bold text-white font-mono">
+                      {formatINR(event.minPrice && event.minPrice > 0 ? event.minPrice : 75000)}
+                    </span>
                   </div>
                   <Link
                     href={`/events/${event.id}`}

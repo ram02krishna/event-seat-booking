@@ -34,23 +34,7 @@ async function main() {
     },
   });
 
-  const alice = await prisma.user.create({
-    data: {
-      email: 'alice@example.com',
-      passwordHash,
-      role: Role.CUSTOMER,
-    },
-  });
-
-  const bob = await prisma.user.create({
-    data: {
-      email: 'bob@example.com',
-      passwordHash,
-      role: Role.CUSTOMER,
-    },
-  });
-
-  console.log('Created users: organizer, staff, alice, bob');
+  console.log('Created users: organizer, staff');
 
   // 3. Create venue with SVG layout config
   const venue = await prisma.venue.create({

@@ -47,7 +47,6 @@ export function Navbar() {
     ORGANIZER: 'text-violet-400 bg-violet-400/10',
     STAFF: 'text-emerald-400 bg-emerald-400/10',
     CUSTOMER: 'text-sky-400 bg-sky-400/10',
-    ATTENDEE: 'text-sky-400 bg-sky-400/10',
   };
 
   return (

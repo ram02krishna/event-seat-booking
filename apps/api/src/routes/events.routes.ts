@@ -19,7 +19,7 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
           select: { id: true, name: true },
         },
         eventSeats: {
-          select: { status: true, holdExpiresAt: true },
+          select: { status: true, holdExpiresAt: true, price: true },
         },
       },
       orderBy: { startsAt: 'asc' },
@@ -34,6 +34,9 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
           (es.status === 'HELD' && es.holdExpiresAt && new Date(es.holdExpiresAt) < now)
       ).length;
 
+      const prices = event.eventSeats.map((es) => es.price);
+      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+
       return {
         id: event.id,
         title: event.title,
@@ -43,6 +46,7 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
         venue: event.venue,
         totalSeats,
         availableSeats: availableCount,
+        minPrice,
       };
     });
 

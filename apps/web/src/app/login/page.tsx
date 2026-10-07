@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ticket } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -27,7 +29,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push('/');
+      router.push(redirectTo);
     } catch (err: any) {
       setError(err.message || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
     } finally {
@@ -116,6 +118,20 @@ export default function LoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="max-w-sm mx-auto px-4 py-16 text-center text-slate-400 text-sm">
+          Loading sign in...
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
 

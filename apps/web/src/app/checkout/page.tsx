@@ -95,7 +95,7 @@ function CheckoutContent() {
           <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 text-center">
             <p className="text-xs text-slate-300 font-medium">Please sign in to complete your booking</p>
             <Link
-              href="/login"
+              href={`/login?redirect=${encodeURIComponent(`/checkout?eventId=${eventId || ''}`)}`}
               className="inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
             >
               Sign In to Continue
@@ -133,8 +133,8 @@ function CheckoutContent() {
             <span className="font-mono text-slate-200">{formatINR(totalCents)}</span>
           </div>
           <div className="flex justify-between text-slate-400">
-            <span>Platform Fee</span>
-            <span className="text-emerald-400 text-xs font-medium">Free (Demo)</span>
+            <span>Convenience / Platform Fee</span>
+            <span className="text-emerald-400 text-xs font-semibold">₹0 (Waived)</span>
           </div>
           <div className="flex justify-between font-semibold text-white text-base pt-2 border-t border-slate-800">
             <span>Total</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import {
@@ -35,7 +35,6 @@ interface OrderItem {
 }
 
 export default function MyTicketsPage() {
-  const queryClient = useQueryClient();
 
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
