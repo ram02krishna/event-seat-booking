@@ -135,21 +135,6 @@ export default function HomePage() {
           })}
         </div>
       )}
-
-      {/* Footer Note */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Atomic seat locks', sub: 'No double-booking' },
-          { label: '5-min auto-release', sub: 'Abandoned holds cleared' },
-          { label: 'Live Socket.IO', sub: 'Real-time seat updates' },
-          { label: 'QR Turnstile', sub: 'Scanned at venue gate' },
-        ].map((f) => (
-          <div key={f.label} className="p-4 rounded-xl bg-slate-800/30 border border-slate-800">
-            <p className="text-xs font-semibold text-slate-300">{f.label}</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">{f.sub}</p>
-          </div>
-        ))}
-      </div>
     </main>
   );
 }

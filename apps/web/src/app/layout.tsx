@@ -15,9 +15,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Navbar />
           <div className="flex-1">{children}</div>
-          <footer className="border-t border-slate-800/60 py-6 text-center text-xs text-slate-600">
-            SeatLock &copy; {new Date().getFullYear()} &mdash; Concurrency-Safe Ticketing
-          </footer>
         </Providers>
       </body>
     </html>
