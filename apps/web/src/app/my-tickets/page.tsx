@@ -3,7 +3,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
   Ticket,
   Calendar,
@@ -11,9 +10,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   Printer,
-  ShieldCheck,
-  Sparkles,
-  User,
   Clock,
 } from 'lucide-react';
 import { formatINR } from '@/lib/format';
@@ -22,12 +18,7 @@ interface TicketItem {
   id: string;
   qrToken: string;
   checkedInAt: string | null;
-  seat: {
-    section: string;
-    row: string;
-    number: number;
-    tier: string;
-  };
+  seat: { section: string; row: string; number: number; tier: string };
   price: number;
   qrDataUrl: string;
 }
@@ -36,14 +27,7 @@ interface OrderItem {
   id: string;
   totalCents: number;
   createdAt: string;
-  event: {
-    id: string;
-    title: string;
-    startsAt: string;
-    venue: {
-      name: string;
-    };
-  };
+  event: { id: string; title: string; startsAt: string; venue: { name: string } };
   tickets: TicketItem[];
 }
 
@@ -81,110 +65,85 @@ export default function MyTicketsPage() {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-6">
-        <div>
+    <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
           <Link
             href="/"
-            className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 mb-2 transition-colors group"
+            className="text-xs text-slate-500 hover:text-white flex items-center gap-1.5 transition-colors mb-1"
           >
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             Back to Events
           </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">My Ticket Wallet</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-              Verified
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Display your high-contrast QR codes directly at the venue gate turnstile for admission.
-          </p>
+          <h1 className="text-2xl font-bold text-white">My Tickets</h1>
+          <p className="text-sm text-slate-400">Your purchased QR passes and seat reservations.</p>
         </div>
-
         {user && orders.length > 0 && (
           <button
             onClick={() => window.print()}
-            className="self-start sm:self-auto px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors flex items-center gap-1.5 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-sm text-slate-300 transition-colors"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-400" />
-            <span>Print Tickets</span>
+            <Printer className="w-4 h-4" />
+            Print
           </button>
         )}
       </div>
 
+      {/* States */}
       {isPageLoading ? (
-        <div className="space-y-6 animate-pulse">
-          <div className="h-48 bg-slate-900/60 rounded-3xl border border-slate-800" />
-          <div className="h-48 bg-slate-900/60 rounded-3xl border border-slate-800" />
+        <div className="space-y-4 animate-pulse">
+          <div className="h-36 bg-slate-800/40 rounded-2xl border border-slate-800" />
+          <div className="h-36 bg-slate-800/40 rounded-2xl border border-slate-800" />
         </div>
       ) : !user || isError ? (
-        <div className="max-w-md mx-auto p-8 rounded-3xl bg-slate-900/60 border border-slate-800 text-center space-y-5 shadow-2xl backdrop-blur-xl">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
-            <Ticket className="w-7 h-7" />
+        <div className="max-w-sm mx-auto p-8 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-5">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
+            <Ticket className="w-6 h-6" />
           </div>
-          <div className="space-y-1.5">
-            <h2 className="text-xl font-bold text-white tracking-tight">Sign In to View Tickets</h2>
-            <p className="text-xs text-slate-400">
-              Your purchased concert and summit QR passes are tied to your customer account.
-            </p>
+          <div>
+            <h2 className="text-base font-semibold text-white">Sign in to view tickets</h2>
+            <p className="text-xs text-slate-400 mt-1">Your tickets are linked to your account.</p>
           </div>
-
-          <div className="pt-2 space-y-3">
+          <div className="space-y-3">
             <Link
               href="/login"
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold block transition-all shadow-md shadow-indigo-600/30"
+              className="block w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium text-center transition-colors"
             >
-              Sign In to Your Account
+              Sign In
             </Link>
-
-            <div className="pt-2 border-t border-slate-800 text-left">
-              <span className="text-[11px] text-slate-500 uppercase tracking-wider block mb-2 font-medium">
-                1-Click Demo Login
-              </span>
+            <div className="pt-1 border-t border-slate-800 space-y-2">
+              <p className="text-xs text-slate-500 text-center">Quick demo login</p>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleQuickLogin('alice@example.com')}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors text-center"
-                >
-                  Alice (Customer)
-                </button>
-                <button
-                  onClick={() => handleQuickLogin('bob@example.com')}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors text-center"
-                >
-                  Bob (Customer)
-                </button>
+                {['alice@example.com', 'bob@example.com'].map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => handleQuickLogin(e)}
+                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition-colors"
+                  >
+                    {e.split('@')[0].charAt(0).toUpperCase() + e.split('@')[0].slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
       ) : orders.length === 0 ? (
-        <div className="p-12 rounded-3xl bg-slate-900/30 border border-slate-800 text-center space-y-4 max-w-lg mx-auto backdrop-blur-sm">
-          <div className="w-12 h-12 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-400">
-            <Ticket className="w-6 h-6" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-white">No Tickets Found</h3>
-            <p className="text-xs text-slate-400">
-              You haven't reserved seats for any upcoming shows yet. Pick your seats on the interactive map to get started.
-            </p>
-          </div>
-          <div className="pt-2">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-600/20"
-            >
-              <span>Explore Live Shows</span>
-              <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-            </Link>
-          </div>
+        <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
+          <Ticket className="w-8 h-8 text-slate-600 mx-auto" />
+          <p className="text-sm font-medium text-slate-300">No tickets yet</p>
+          <p className="text-xs text-slate-500">Browse events and pick your seats to get started.</p>
+          <Link
+            href="/"
+            className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+          >
+            Browse Events
+          </Link>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {orders.map((order) => {
-            const eventDate = new Date(order.event.startsAt).toLocaleDateString('en-US', {
+            const eventDate = new Date(order.event.startsAt).toLocaleDateString('en-IN', {
               weekday: 'short',
               month: 'short',
               day: 'numeric',
@@ -194,132 +153,89 @@ export default function MyTicketsPage() {
             });
 
             return (
-              <motion.div
+              <div
                 key={order.id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-3xl border border-slate-800/90 bg-slate-900/40 overflow-hidden shadow-xl backdrop-blur-sm"
+                className="rounded-2xl border border-slate-800 bg-slate-800/20 overflow-hidden"
               >
-                {/* Order Header Banner */}
-                <div className="p-5 sm:p-6 border-b border-slate-800/80 bg-slate-950/60 flex flex-wrap items-center justify-between gap-4">
+                {/* Order header */}
+                <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                        Order #{order.id.slice(0, 8)}
+                      <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                        #{order.id.slice(0, 8).toUpperCase()}
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {new Date(order.createdAt).toLocaleDateString('en-IN')}
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                      {order.event.title}
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{eventDate}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{order.event.venue.name}</span>
-                      </div>
+                    <h2 className="text-base font-semibold text-white">{order.event.title}</h2>
+                    <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {eventDate}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {order.event.venue.name}
+                      </span>
                     </div>
                   </div>
-
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                      Total Paid
-                    </span>
-                    <span className="font-mono text-xl font-bold text-emerald-400">
-                      {formatINR(order.totalCents)}
-                    </span>
-                    <div className="text-[10px] text-slate-500 mt-0.5">
-                      {order.tickets.length} {order.tickets.length === 1 ? 'Seat Reserved' : 'Seats Reserved'}
-                    </div>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Total Paid</p>
+                    <p className="text-lg font-bold text-white font-mono">{formatINR(order.totalCents)}</p>
+                    <p className="text-xs text-slate-500">{order.tickets.length} seat{order.tickets.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
 
-                {/* Tickets Grid - Boarding Pass Style */}
-                <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Tickets */}
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {order.tickets.map((t) => {
-                    const tierThemes: Record<string, { badge: string; border: string; accent: string }> = {
-                      VIP: {
-                        badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                        border: 'border-amber-500/20',
-                        accent: 'text-amber-400',
-                      },
-                      PREMIUM: {
-                        badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-                        border: 'border-indigo-500/20',
-                        accent: 'text-indigo-400',
-                      },
-                      STANDARD: {
-                        badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-                        border: 'border-cyan-500/20',
-                        accent: 'text-cyan-400',
-                      },
-                    };
-                    const theme = tierThemes[t.seat.tier] || tierThemes.STANDARD;
+                    const tierColor = {
+                      VIP: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+                      PREMIUM: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
+                      STANDARD: 'text-slate-300 bg-slate-700/40 border-slate-700',
+                    }[t.seat.tier] ?? 'text-slate-300 bg-slate-700/40 border-slate-700';
 
                     return (
                       <div
                         key={t.id}
-                        className={`relative rounded-2xl border ${theme.border} bg-slate-950/80 p-5 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-lg group hover:border-slate-700 transition-all`}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800"
                       >
-                        {/* Left Stub: Seat Details */}
-                        <div className="space-y-3 w-full sm:w-auto">
-                          <div>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${theme.badge}`}>
-                              {t.seat.tier} Tier
-                            </span>
-                            <div className="text-2xl font-black text-white font-mono mt-1.5 tracking-tight">
-                              Row {t.seat.row} • Seat {t.seat.number}
-                            </div>
-                            <span className="text-xs text-slate-400 block mt-0.5">
-                              Section: <strong className="text-slate-300">{t.seat.section}</strong>
-                            </span>
-                          </div>
-
-                          <div className="pt-1 flex items-center gap-3">
-                            {t.checkedInAt ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
-                                <Clock className="w-3 h-3 text-slate-400" />
-                                Checked In
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                Valid For Entry
-                              </span>
-                            )}
-
-                            <span className="text-xs font-mono font-semibold text-slate-400">
-                              {formatINR(t.price)}
-                            </span>
-                          </div>
+                        {/* QR */}
+                        <div className="shrink-0 bg-white p-1.5 rounded-lg shadow-md">
+                          <img
+                            src={t.qrDataUrl}
+                            alt="QR"
+                            className="w-16 h-16 object-contain"
+                          />
                         </div>
 
-                        {/* Perforated divider on mobile: border-t, on desktop: border-l */}
-                        <div className="hidden sm:block border-l border-dashed border-slate-800 h-28 mx-1" />
-
-                        {/* Right Stub: QR Code */}
-                        <div className="shrink-0 flex flex-col items-center justify-center p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 shadow-inner">
-                          <div className="bg-white p-2 rounded-lg shadow-md">
-                            <img
-                              src={t.qrDataUrl}
-                              alt="Ticket Turnstile QR"
-                              className="w-24 h-24 object-contain"
-                            />
+                        {/* Details */}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div>
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${tierColor}`}>
+                              {t.seat.tier}
+                            </span>
+                            <p className="text-sm font-semibold text-white mt-1">
+                              Row {t.seat.row} &bull; Seat {t.seat.number}
+                            </p>
+                            <p className="text-xs text-slate-500">Section {t.seat.section}</p>
                           </div>
-                          <span className="text-[9px] font-mono text-slate-400 mt-2 tracking-widest uppercase">
-                            {t.qrToken.slice(0, 8)}
-                          </span>
+
+                          <div className="flex items-center justify-between">
+                            <span className={`flex items-center gap-1 text-[11px] font-medium ${t.checkedInAt ? 'text-slate-500' : 'text-emerald-400'}`}>
+                              {t.checkedInAt
+                                ? <><Clock className="w-3 h-3" /> Used</>
+                                : <><CheckCircle2 className="w-3 h-3" /> Valid</>}
+                            </span>
+                            <span className="text-xs font-mono text-slate-400">{formatINR(t.price)}</span>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
