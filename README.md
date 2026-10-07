@@ -260,16 +260,17 @@ pnpm typecheck
 
 ---
 
-## Pre-Configured Demo Accounts
+## Role Hierarchy & Access Control
 
-All test accounts share the password: `password123`
+The platform enforces a real-world role and security hierarchy:
 
-| Role | Email | Permissions / Features |
-|---|---|---|
-| **ORGANIZER** | `organizer@eventseat.com` | Access `/organizer` dashboard, view revenue & occupancy analytics, create events |
-| **STAFF** | `staff@eventseat.com` | Access `/staff/scanner` live camera QR code turnstile scanner |
-| **CUSTOMER** | `alice@example.com` | Browse events, pick seats on SVG map, hold for 5 mins, checkout, view tickets |
-| **CUSTOMER** | `bob@example.com` | Secondary customer for simulating multi-user seat competition |
+| Role | Provisioning | Default / Access | Permissions & Features |
+|---|---|---|---|
+| **ORGANIZER** | **Single Administrative Account** | `organizer@eventseat.com`<br>*(Password: `password123`)* | Access `/organizer` dashboard, view live revenue & occupancy analytics, create events & venues, manage ticket pricing tiers, and provision staff accounts |
+| **STAFF** | **Created Exclusively by Organizer** | Provisioned via `/organizer` dashboard | Access `/staff/scanner` live camera QR code turnstile scanner, manual UUID validation, and real-time check-in |
+| **CUSTOMER** | **Public Self-Registration** | Self-signup via `/login` (Register tab) | Browse events, interact with live SVG seat map, hold seats for 5 mins, checkout, view digital tickets with UUIDs, and receive QR emails |
+
+> **Security Note:** Public registration (`POST /api/auth/register`) strictly assigns the `CUSTOMER` role to prevent unauthorized access to organizer and administrative consoles. Only the authenticated Organizer can provision gate Staff accounts.
 
 ---
 
@@ -277,21 +278,34 @@ All test accounts share the password: `password123`
 
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | Register customer / staff / organizer | Public |
+| `POST` | `/api/auth/register` | Register new customer account (Public registration) | Public |
 | `POST` | `/api/auth/login` | Login with email and password | Public |
+| `POST` | `/api/auth/logout` | Clear session cookie | Public |
+| `GET` | `/api/auth/me` | Fetch authenticated user profile & role | Authenticated |
 | `GET` | `/api/events` | List all published events | Public |
-| `GET` | `/api/events/:id/seats` | Get seat map layout and availability | Public |
-| `POST` | `/api/events/:id/hold` | Atomically hold seats for 5 minutes | Customer |
+| `GET` | `/api/events/:id/seats` | Get seat map layout and real-time availability | Public |
+| `POST` | `/api/events/:id/hold` | Atomically hold seats for 5 minutes (Redis + DB lock) | Customer |
 | `POST` | `/api/events/:id/release` | Release held seats manually | Customer |
-| `POST` | `/api/orders/confirm` | Finalize payment and generate QR tickets | Customer |
-| `GET` | `/api/tickets/my` | List logged-in user tickets with QR codes | Customer |
-| `POST` | `/api/tickets/checkin` | Atomic turnstile QR code scan validation | Staff / Organizer |
-| `GET` | `/api/organizer/stats` | Aggregate revenue, occupancy, and event stats | Organizer |
-| `GET` | `/api/organizer/events/:id/stats` | Event tier breakdown and gate telemetry | Organizer |
-| `POST` | `/api/organizer/events` | Create new event with tier pricing overrides | Organizer |
+| `POST` | `/api/orders/confirm` | Finalize payment, generate QR tickets & dispatch email | Customer |
+| `GET` | `/api/orders/my-tickets` | List user confirmed orders with QR codes & UUIDs | Customer |
+| `POST` | `/api/tickets/checkin` | Turnstile QR code token or UUID check-in verification | Staff / Organizer |
+| `GET` | `/api/organizer/stats` | Aggregate revenue, occupancy, and event analytics | Organizer |
+| `GET` | `/api/organizer/events/:id/stats` | Event tier breakdown and gate check-in telemetry | Organizer |
+| `POST` | `/api/organizer/events` | Create new event with custom venue and tier pricing | Organizer |
+| `GET` | `/api/organizer/staff` | List active gate staff accounts | Organizer |
+| `POST` | `/api/organizer/staff` | Provision a new gate staff member (`email`, `password`) | Organizer |
+| `DELETE` | `/api/organizer/staff/:id` | Revoke a gate staff account | Organizer |
 
 ---
 
-## License
+## Database Management & Clean Scripts
 
-MIT License. Created by Ram Krishna as a B.Tech Computer Science capstone project.
+```bash
+# Wipe test accounts, orders, tickets, and reset all seats to 100% AVAILABLE:
+pnpm --filter api run db:clean
+
+# Re-seed baseline venue, seats, and sample events:
+pnpm --filter api run prisma:seed
+```
+
+---

@@ -23,6 +23,13 @@ import {
   MapPin,
   UserPlus,
   Trash2,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ScanLine,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { formatINR } from '@/lib/format';
 
@@ -156,6 +163,9 @@ export default function OrganizerDashboardPage() {
   // Staff management state
   const [staffEmail, setStaffEmail] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [copiedStaffEmail, setCopiedStaffEmail] = useState<string | null>(null);
+  const [staffSearch, setStaffSearch] = useState('');
   const [staffError, setStaffError] = useState<string | null>(null);
   const [staffSuccess, setStaffSuccess] = useState<string | null>(null);
 
@@ -169,6 +179,9 @@ export default function OrganizerDashboardPage() {
   });
 
   const staffMembers = staffData?.staff || [];
+  const filteredStaff = staffMembers.filter((m) =>
+    m.email.toLowerCase().includes(staffSearch.toLowerCase())
+  );
 
   // Create staff mutation
   const createStaffMutation = useMutation({
@@ -822,133 +835,255 @@ export default function OrganizerDashboardPage() {
       </section>
 
       {/* Staff Management Section */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <span>Gate Staff & Scanner Accounts</span>
-              <span className="text-xs font-normal text-slate-400">({staffMembers.length})</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Only you (Organizer) can create staff accounts for gate verification at <code className="text-indigo-400">/staff/scanner</code>.
+      <section className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <ScanLine className="w-4 h-4" />
+              </div>
+              <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                <span>Gate Staff & Scanner Access</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                  {staffMembers.length} {staffMembers.length === 1 ? 'account' : 'accounts'}
+                </span>
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 pl-9">
+              Provision turnstile staff accounts to operate the camera QR scanner at venue entry gates.
             </p>
           </div>
+
+          <Link
+            href="/staff/scanner"
+            target="_blank"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs font-semibold text-slate-300 hover:text-white transition-colors shrink-0 self-start sm:self-auto"
+          >
+            <span>Launch Gate Scanner</span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+          </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Create Staff Form Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white">Add Staff Member</h3>
-            </div>
-
-            {staffSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{staffSuccess}</span>
-              </div>
-            )}
-
-            {staffError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                {staffError}
-              </div>
-            )}
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createStaffMutation.mutate();
-              }}
-              className="space-y-3"
-            >
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-400">Staff Email</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="gatekeeper@event.com"
-                  value={staffEmail}
-                  onChange={(e) => setStaffEmail(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-slate-400">Password (min 6 chars)</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  value={staffPassword}
-                  onChange={(e) => setStaffPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={createStaffMutation.isPending}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>{createStaffMutation.isPending ? 'Creating Account...' : 'Create Staff Account'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Staff Accounts List */}
-          <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden flex flex-col justify-between">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">Authorized Gate Staff</span>
-              <span className="text-[11px] text-slate-500 font-mono">{staffMembers.length} active</span>
-            </div>
-
-            <div className="divide-y divide-slate-800/60 overflow-y-auto max-h-64">
-              {staffLoading ? (
-                <div className="p-6 text-center text-xs text-slate-500">Loading staff roster...</div>
-              ) : staffMembers.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-500 space-y-1">
-                  <p>No staff accounts created yet.</p>
-                  <p className="text-[11px]">Create staff accounts here so your team can log in and scan tickets at gates.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Create Staff Form Card (5 cols) */}
+          <div className="lg:col-span-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-5 shadow-sm flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
                 </div>
-              ) : (
-                staffMembers.map((member) => (
-                  <div key={member.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-800/20 transition-colors">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs text-white truncate">{member.email}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          {member.role}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Added {new Date(member.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Create Staff Account</h3>
+                  <p className="text-[11px] text-slate-400">Assign credentials for event gatekeepers</p>
+                </div>
+              </div>
 
+              {staffSuccess && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{staffSuccess}</span>
+                </div>
+              )}
+
+              {staffError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-start gap-2.5">
+                  <X className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{staffError}</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  createStaffMutation.mutate();
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Staff Email Address <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="gatekeeper@event.com"
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Password (min 6 characters) <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showStaffPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="••••••••"
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
                     <button
                       type="button"
-                      onClick={() => {
-                        if (confirm(`Revoke scanner access for ${member.email}?`)) {
-                          deleteStaffMutation.mutate(member.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                      title="Revoke staff account"
+                      onClick={() => setShowStaffPassword(!showStaffPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-1"
+                      title={showStaffPassword ? 'Hide password' : 'Show password'}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {showStaffPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
-                ))
-              )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={createStaffMutation.isPending}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>{createStaffMutation.isPending ? 'Provisioning Staff...' : 'Create Staff Account'}</span>
+                </button>
+              </form>
             </div>
 
-            <div className="p-3 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-              <span>Staff accounts log in at <code>/login</code> and verify tickets at <code>/staff/scanner</code></span>
+            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 text-[11px] text-slate-400 space-y-1 mt-4">
+              <p className="font-semibold text-slate-300 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                Role & Security Model
+              </p>
+              <p className="text-slate-500 leading-relaxed">
+                Staff accounts can log in and validate attendee QR passes, but have zero access to event creation, ticket revenue, or dashboard analytics.
+              </p>
+            </div>
+          </div>
+
+          {/* Staff Accounts List Card (7 cols) */}
+          <div className="lg:col-span-7 rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="p-4 sm:p-5 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Authorized Gate Staff</h3>
+                  <p className="text-[11px] text-slate-400">Personnel active for live QR validation</p>
+                </div>
+
+                {staffMembers.length > 2 && (
+                  <div className="relative w-44">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filter staff..."
+                      value={staffSearch}
+                      onChange={(e) => setStaffSearch(e.target.value)}
+                      className="w-full pl-8 pr-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="divide-y divide-slate-800/60 overflow-y-auto max-h-[380px]">
+                {staffLoading ? (
+                  <div className="p-12 text-center text-xs text-slate-500 space-y-2">
+                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p>Loading gate staff...</p>
+                  </div>
+                ) : filteredStaff.length === 0 ? (
+                  <div className="p-12 text-center text-xs text-slate-400 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-500">
+                      <ScanLine className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-300">
+                        {staffSearch ? 'No staff matching filter' : 'No staff accounts provisioned yet'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                        Use the form on the left to create gatekeeper accounts. Staff will be able to log in and use the turnstile scanner.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  filteredStaff.map((member) => (
+                    <div
+                      key={member.id}
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-800/20 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                          <ScanLine className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs text-white truncate">{member.email}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(member.email);
+                                setCopiedStaffEmail(member.id);
+                                setTimeout(() => setCopiedStaffEmail(null), 2000);
+                              }}
+                              className="text-slate-500 hover:text-slate-300 transition-colors"
+                              title="Copy email"
+                            >
+                              {copiedStaffEmail === member.id ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              STAFF
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span>Active Gate Scanner</span>
+                            <span>&bull;</span>
+                            <span>Added {new Date(member.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 sm:self-center self-end">
+                        <Link
+                          href="/staff/scanner"
+                          target="_blank"
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1"
+                        >
+                          <span>Scanner</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Revoke turnstile scanner access for ${member.email}?`)) {
+                              deleteStaffMutation.mutate(member.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          title="Revoke staff account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Staff log in at <code className="text-slate-400">/login</code> and verify tickets at <code className="text-slate-400">/staff/scanner</code></span>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">&bull;</span>
+              <span className="text-slate-500">Instant gate sync</span>
             </div>
           </div>
         </div>
