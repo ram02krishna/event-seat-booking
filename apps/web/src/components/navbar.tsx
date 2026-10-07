@@ -39,12 +39,20 @@ export function Navbar() {
           >
             My Tickets
           </Link>
+          {(user?.role === 'STAFF' || user?.role === 'ORGANIZER') && (
+            <Link
+              href="/staff/scanner"
+              className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Scanner
+            </Link>
+          )}
           {user?.role === 'ORGANIZER' && (
             <Link
               href="/organizer"
               className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
             >
-              <ShieldCheck className="w-4 h-4" />
               Organizer
             </Link>
           )}

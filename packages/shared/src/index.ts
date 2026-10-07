@@ -88,4 +88,11 @@ export const ConfirmOrderSchema = z.object({
 });
 export type ConfirmOrderInput = z.infer<typeof ConfirmOrderSchema>;
 
+// Check-in schema
+export const CheckInSchema = z.object({
+  qrToken: z.string().uuid('Invalid QR token format'),
+});
+export type CheckInInput = z.infer<typeof CheckInSchema>;
+
+
 

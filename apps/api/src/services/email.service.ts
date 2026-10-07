@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { logger } from '../logger';
 
 export interface SendTicketsEmailParams {
@@ -16,16 +16,8 @@ export interface SendTicketsEmailParams {
   }>;
 }
 
-// Configurable transporter; logs safely in local/dev if no SMTP host configured
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-  },
-});
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams) {
   const { toEmail, orderId, eventTitle, startsAt, venueName, tickets } = params;
@@ -37,15 +29,6 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
-
-  const attachments = tickets.map((t, index) => {
-    const base64Data = t.qrDataUrl.replace(/^data:image\/png;base64,/, '');
-    return {
-      filename: `ticket-${t.ticketId}.png`,
-      content: Buffer.from(base64Data, 'base64'),
-      cid: `qr_${index}`,
-    };
   });
 
   const html = `
@@ -62,13 +45,13 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       <h3 style="color: #e2e8f0; border-bottom: 1px solid #334155; padding-bottom: 8px;">Your Tickets</h3>
       ${tickets
         .map(
-          (t, index) => `
+          (t) => `
         <div style="display: flex; align-items: center; justify-content: space-between; background-color: #131b2e; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
           <div>
             <div style="font-weight: bold; font-size: 16px; color: #ffffff;">${t.seatLabel}</div>
             <div style="color: #818cf8; font-size: 12px; text-transform: uppercase;">${t.tier} • $${(t.priceCents / 100).toFixed(2)}</div>
           </div>
-          <img src="cid:qr_${index}" width="80" height="80" alt="Ticket QR" style="border-radius: 6px; background: white; padding: 4px;" />
+          <img src="${t.qrDataUrl}" width="80" height="80" alt="Ticket QR" style="border-radius: 6px; background: white; padding: 4px;" />
         </div>
       `
         )
@@ -81,20 +64,19 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
   `;
 
   try {
-    if (!process.env.SMTP_USER) {
-      logger.info(`[Email Preview] Mock confirmation email sent to ${toEmail} for order ${orderId}`);
+    if (!resend) {
+      logger.info(`[Resend Mock] Confirmation email sent to ${toEmail} for order ${orderId}`);
       return;
     }
 
-    await transporter.sendMail({
-      from: '"SeatLock" <tickets@seatlock.io>',
+    await resend.emails.send({
+      from: 'SeatLock <tickets@resend.dev>',
       to: toEmail,
       subject: `Your Tickets for ${eventTitle}`,
       html,
-      attachments,
     });
-    logger.info(`Ticket confirmation email sent to ${toEmail}`);
+    logger.info(`Resend ticket confirmation email sent to ${toEmail}`);
   } catch (err) {
-    logger.error(err, `Failed to send ticket email to ${toEmail}`);
+    logger.error(err, `Failed to send Resend email to ${toEmail}`);
   }
 }
