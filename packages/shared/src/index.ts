@@ -35,6 +35,30 @@ export const LoginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof LoginSchema>;
 
+export const SendOtpRegisterSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+export type SendOtpRegisterInput = z.infer<typeof SendOtpRegisterSchema>;
+
+export const VerifyOtpRegisterSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  otp: z.string().length(6, 'Verification code must be 6 digits'),
+});
+export type VerifyOtpRegisterInput = z.infer<typeof VerifyOtpRegisterSchema>;
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+
+export const ResetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  otp: z.string().length(6, 'Verification code must be 6 digits'),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+});
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
+
 export interface AuthUser {
   id: string;
   email: string;

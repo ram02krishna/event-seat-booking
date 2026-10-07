@@ -189,3 +189,97 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
   }
 }
 
+export interface SendOtpEmailParams {
+  toEmail: string;
+  otp: string;
+  purpose: 'signup' | 'reset';
+}
+
+export async function sendOtpEmail(params: SendOtpEmailParams) {
+  const { toEmail, otp, purpose } = params;
+  const isReset = purpose === 'reset';
+  const title = isReset ? 'Reset Your Password' : 'Verify Your Email';
+  const subtitle = isReset
+    ? 'Use the verification code below to reset your account password.'
+    : 'Use the verification code below to complete your registration.';
+  const subject = isReset
+    ? `Password Reset Code: ${otp}`
+    : `Your Verification Code: ${otp}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0e1a; color: #f1f5f9; margin: 0; padding: 24px 16px;">
+        <div style="max-width: 520px; margin: 0 auto; background-color: #111827; border-radius: 16px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+          
+          <!-- Header Bar -->
+          <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 24px 20px; text-align: center;">
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #c7d2fe; margin-bottom: 4px;">
+              Security Verification
+            </div>
+            <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff;">
+              ${title}
+            </h1>
+          </div>
+
+          <div style="padding: 28px 24px; text-align: center;">
+            <p style="margin: 0 0 20px 0; font-size: 14px; color: #cbd5e1; line-height: 1.5;">
+              ${subtitle}
+            </p>
+
+            <!-- OTP Code Badge -->
+            <div style="margin: 16px 0 24px 0; padding: 16px 28px; background-color: #0f172a; border: 1px dashed #6366f1; border-radius: 12px; display: inline-block;">
+              <span style="font-family: monospace, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #818cf8;">
+                ${otp}
+              </span>
+            </div>
+
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+              This code will expire in <strong>10 minutes</strong>.
+            </p>
+
+            <div style="font-size: 11px; color: #64748b; margin-top: 26px; text-align: center; line-height: 1.5; border-top: 1px solid #1e293b; padding-top: 16px;">
+              If you did not request this verification code, please ignore this email.<br />
+              Never share this one-time code with anyone.
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Always log to server logs for easy development & debugging
+  logger.info(`[Auth OTP] Verification code for ${toEmail} (${purpose}): ${otp}`);
+
+  try {
+    if (!resend) {
+      logger.info(`[Resend Mock] OTP email logged for ${toEmail}`);
+      return;
+    }
+
+    const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
+    const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
+
+    const result = await resend.emails.send({
+      from: 'Security <onboarding@resend.dev>',
+      to: recipient,
+      subject,
+      html,
+    });
+
+    if (result.error) {
+      logger.error(`Resend OTP Error: ${result.error.message} (code: ${result.error.name})`);
+    } else {
+      logger.info(`Resend OTP email sent successfully to ${recipient} (id: ${result.data?.id})`);
+    }
+  } catch (err) {
+    logger.error(err, `Failed to send Resend OTP email to ${toEmail}`);
+  }
+}
+
+
