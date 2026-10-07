@@ -36,12 +36,23 @@ interface OrderItem {
 }
 
 export default function MyTicketsPage() {
+  const { data: authData, isLoading: authLoading } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => apiFetch('/api/auth/me'),
+    retry: false,
+  });
+
+  const user = authData?.user;
+
   const { data, isLoading, isError } = useQuery<{ orders: OrderItem[] }>({
     queryKey: ['my-tickets'],
     queryFn: () => apiFetch('/api/orders/my-tickets'),
+    enabled: !!user,
+    retry: false,
   });
 
   const orders = data?.orders || [];
+  const isPageLoading = authLoading || (!!user && isLoading);
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
@@ -61,12 +72,12 @@ export default function MyTicketsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isPageLoading ? (
         <div className="space-y-4 animate-pulse">
           <div className="h-44 bg-slate-900 rounded-2xl border border-slate-800" />
           <div className="h-44 bg-slate-900 rounded-2xl border border-slate-800" />
         </div>
-      ) : isError ? (
+      ) : !user || isError ? (
         <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center space-y-3">
           <p className="text-sm text-slate-300">Please sign in to view your tickets.</p>
           <Link

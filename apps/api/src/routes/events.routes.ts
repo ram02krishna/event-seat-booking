@@ -18,38 +18,33 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
         venue: {
           select: { id: true, name: true },
         },
-        _count: {
-          select: { eventSeats: true },
+        eventSeats: {
+          select: { status: true, holdExpiresAt: true },
         },
       },
       orderBy: { startsAt: 'asc' },
     });
 
-    const eventsWithStats = await Promise.all(
-      events.map(async (event) => {
-        const now = new Date();
-        const availableCount = await prisma.eventSeat.count({
-          where: {
-            eventId: event.id,
-            OR: [
-              { status: 'AVAILABLE' },
-              { status: 'HELD', holdExpiresAt: { lt: now } },
-            ],
-          },
-        });
+    const now = new Date();
+    const eventsWithStats = events.map((event) => {
+      const totalSeats = event.eventSeats.length;
+      const availableCount = event.eventSeats.filter(
+        (es) =>
+          es.status === 'AVAILABLE' ||
+          (es.status === 'HELD' && es.holdExpiresAt && new Date(es.holdExpiresAt) < now)
+      ).length;
 
-        return {
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          startsAt: event.startsAt,
-          status: event.status,
-          venue: event.venue,
-          totalSeats: event._count.eventSeats,
-          availableSeats: availableCount,
-        };
-      })
-    );
+      return {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        startsAt: event.startsAt,
+        status: event.status,
+        venue: event.venue,
+        totalSeats,
+        availableSeats: availableCount,
+      };
+    });
 
     res.status(200).json({ events: eventsWithStats });
   } catch (err) {

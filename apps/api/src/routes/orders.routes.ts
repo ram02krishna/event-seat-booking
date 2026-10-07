@@ -32,6 +32,17 @@ ordersRouter.post(
   }
 );
 
+const qrCache = new Map<string, string>();
+
+async function getOrGenerateQrDataUrl(qrToken: string): Promise<string> {
+  const cached = qrCache.get(qrToken);
+  if (cached) return cached;
+
+  const dataUrl = await qrcode.toDataURL(qrToken, { width: 220, margin: 1 });
+  qrCache.set(qrToken, dataUrl);
+  return dataUrl;
+}
+
 // Get current user's tickets
 ordersRouter.get('/my-tickets', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -58,7 +69,7 @@ ordersRouter.get('/my-tickets', requireAuth, async (req: Request, res: Response,
       orders.map(async (order) => {
         const ticketsWithQRs = await Promise.all(
           order.tickets.map(async (t) => {
-            const qrDataUrl = await qrcode.toDataURL(t.qrToken, { width: 250, margin: 2 });
+            const qrDataUrl = await getOrGenerateQrDataUrl(t.qrToken);
             return {
               id: t.id,
               qrToken: t.qrToken,
