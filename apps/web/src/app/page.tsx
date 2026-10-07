@@ -57,7 +57,7 @@ export default function HomePage() {
         <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
           <p className="text-slate-300 text-sm font-semibold">No upcoming events scheduled right now.</p>
           <p className="text-slate-500 text-xs max-w-sm mx-auto">
-            Check back soon for new concerts, conferences, and live seated performances.
+            Check back soon for new theatre plays, concerts, cinema screenings, and live seated performances.
           </p>
           <Link
             href="/login"

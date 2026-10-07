@@ -297,7 +297,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
         )}
       </AnimatePresence>
 
-      {/* SVG Auditorium Seating Plan Canvas */}
+      {/* SVG Seating Plan Canvas (Theatres, Concert Halls, Arenas, Auditoriums) */}
       <div className="relative w-full overflow-auto flex justify-center items-center min-h-[500px] max-h-[720px] bg-radial from-slate-900/60 to-slate-950 rounded-2xl border border-slate-900/80 p-2 sm:p-4">
         <motion.div
           animate={{ scale: zoomLevel }}
@@ -333,7 +333,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
               </radialGradient>
             </defs>
 
-            {/* 1. Spotlight Light Beam across Auditorium */}
+            {/* 1. Spotlight Light Beam across Stage / Theatre */}
             <polygon
               points={`${baseWidth / 2 - 160},40 ${baseWidth / 2 + 160},40 ${baseWidth / 2 + 450},680 ${baseWidth / 2 - 450},680`}
               fill="url(#spotlightBeam)"
@@ -393,7 +393,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 letterSpacing={4}
                 className="select-none"
               >
-                ✦ MAIN STAGE ✦
+                ✦ {stage.label || 'MAIN STAGE'} ✦
               </text>
               <text
                 x={baseWidth / 2}
@@ -406,7 +406,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 opacity={0.8}
                 className="select-none"
               >
-                AUDITORIUM PROSCENIUM
+                THEATRE • STAGE • SCREEN
               </text>
             </g>
 
@@ -434,7 +434,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 fontWeight="700"
                 letterSpacing={2}
               >
-                ★ VIP FRONT ROW ORCHESTRA ★
+                ★ VIP ORCHESTRA / FRONT STALLS ★
               </text>
             </g>
 
@@ -461,7 +461,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 fontWeight="700"
                 letterSpacing={2}
               >
-                ◆ PREMIUM MEZZANINE TIER ◆
+                ◆ PREMIUM MEZZANINE / DRESS CIRCLE ◆
               </text>
             </g>
 
@@ -488,7 +488,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 fontWeight="700"
                 letterSpacing={2}
               >
-                ▲ STANDARD GENERAL SEATING ▲
+                ▲ STANDARD BALCONY / UPPER TIER ▲
               </text>
             </g>
 
@@ -727,10 +727,10 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Section: {hoveredSeat.section} •{' '}
                   {hoveredSeat.row === 'A' || hoveredSeat.row === 'B'
-                    ? 'Front-row center orchestra'
+                    ? 'Front stalls & orchestra — prime stage view'
                     : hoveredSeat.row <= 'E'
-                    ? 'Mid-tier elevated angle'
-                    : 'Upper tiered general view'}
+                    ? 'Elevated dress circle — panoramic theatre sightline'
+                    : 'Balcony & upper tier — wide venue perspective'}
                 </p>
               </div>
             </div>
@@ -760,7 +760,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
           <div className="flex items-center justify-between w-full text-slate-400">
             <span className="flex items-center gap-2 text-xs">
               <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>Hover over any armchair to inspect row, tier acoustics, and pricing.</span>
+              <span>Hover over any armchair to inspect row, tier, sightline, and pricing.</span>
             </span>
             <span className="text-[11px] text-slate-500 hidden sm:inline">
               Selected: <strong className="text-indigo-300">{selectedSeats.length}/6</strong>
