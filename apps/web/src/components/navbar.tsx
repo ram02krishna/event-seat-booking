@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import { Ticket, LayoutDashboard, ScanLine, LogOut, User } from 'lucide-react';
+import { Ticket, LayoutDashboard, ScanLine, LogOut, User, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/components/theme-provider';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { theme, toggleTheme } = useTheme();
 
   const { data } = useQuery({
     queryKey: ['auth', 'me'],
@@ -80,8 +82,23 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Right: User / Auth */}
+        {/* Right: User / Auth + Theme */}
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 transition-colors flex items-center justify-center"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-500" />
+            )}
+          </button>
+
           {user ? (
             <>
               {/* User pill */}
