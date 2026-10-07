@@ -11,8 +11,8 @@ export default function LoginPage() {
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('alice@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<'CUSTOMER' | 'ORGANIZER' | 'STAFF'>('CUSTOMER');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,23 +29,6 @@ export default function LoginPage() {
       router.push('/');
     } catch (err: any) {
       setError(err.message || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function quickLogin(userEmail: string) {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: userEmail, password: 'password123' }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -156,33 +139,8 @@ export default function LoginPage() {
               : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
-
-        {/* Demo accounts */}
-        <div className="pt-2 border-t border-slate-800 space-y-3">
-          <p className="text-xs text-slate-500 text-center">
-            Quick demo login (password: password123)
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Alice', sub: 'Customer', email: 'alice@example.com' },
-              { label: 'Bob', sub: 'Customer', email: 'bob@example.com' },
-              { label: 'Organizer', sub: 'Dashboard', email: 'organizer@eventseat.com' },
-              { label: 'Staff Gate', sub: 'Scanner', email: 'staff@eventseat.com' },
-            ].map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                disabled={isLoading}
-                onClick={() => quickLogin(acc.email)}
-                className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-left transition-colors disabled:opacity-50"
-              >
-                <span className="block text-xs font-semibold text-white">{acc.label}</span>
-                <span className="text-[11px] text-slate-500">{acc.sub}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </main>
   );
 }
+

@@ -64,17 +64,6 @@ export default function MyTicketsPage() {
     }
   }
 
-  async function handleQuickLogin(email: string) {
-    try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password: 'password123' }),
-      });
-      await queryClient.invalidateQueries();
-    } catch {
-      // ignore
-    }
-  }
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -124,20 +113,6 @@ export default function MyTicketsPage() {
             >
               Sign In
             </Link>
-            <div className="pt-1 border-t border-slate-800 space-y-2">
-              <p className="text-xs text-slate-500 text-center">Quick demo login</p>
-              <div className="grid grid-cols-2 gap-2">
-                {['alice@example.com', 'bob@example.com'].map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => handleQuickLogin(e)}
-                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition-colors"
-                  >
-                    {e.split('@')[0].charAt(0).toUpperCase() + e.split('@')[0].slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       ) : orders.length === 0 ? (

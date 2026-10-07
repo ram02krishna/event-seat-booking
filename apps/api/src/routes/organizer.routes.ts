@@ -117,10 +117,66 @@ organizerRouter.post(
       }
 
       if (!venue && venueName && venueName.trim()) {
-        venue = await prisma.venue.findFirst({
-          where: { name: { equals: venueName.trim(), mode: 'insensitive' } },
+        const vName = venueName.trim();
+        const existing = await prisma.venue.findFirst({
+          where: { name: { equals: vName, mode: 'insensitive' } },
           include: { seats: true },
         });
+
+        if (existing) {
+          venue = existing;
+        } else {
+          venue = await prisma.venue.create({
+            data: {
+              name: vName,
+              layout: {
+                width: 1000,
+                height: 700,
+                stage: { x: 250, y: 30, width: 500, height: 50, label: 'MAIN STAGE' },
+                sections: [
+                  { id: 'VIP', name: 'VIP Front Row', tier: 'VIP', color: '#8b5cf6', defaultPriceCents: 250000 },
+                  { id: 'PREMIUM', name: 'Premium Middle', tier: 'PREMIUM', color: '#3b82f6', defaultPriceCents: 150000 },
+                  { id: 'STANDARD', name: 'Standard General', tier: 'STANDARD', color: '#10b981', defaultPriceCents: 75000 },
+                ],
+              },
+            },
+            include: { seats: true },
+          });
+
+          const seatDefs: Array<{
+            venueId: string;
+            section: string;
+            row: string;
+            number: number;
+            x: number;
+            y: number;
+            tier: string;
+          }> = [];
+
+          ['A', 'B'].forEach((row, rIdx) => {
+            const y = 130 + rIdx * 50;
+            for (let num = 1; num <= 10; num++) {
+              seatDefs.push({ venueId: venue!.id, section: 'VIP', row, number: num, x: 275 + (num - 1) * 50, y, tier: 'VIP' });
+            }
+          });
+
+          ['C', 'D', 'E'].forEach((row, rIdx) => {
+            const y = 260 + rIdx * 50;
+            for (let num = 1; num <= 12; num++) {
+              seatDefs.push({ venueId: venue!.id, section: 'PREMIUM', row, number: num, x: 225 + (num - 1) * 50, y, tier: 'PREMIUM' });
+            }
+          });
+
+          ['F', 'G', 'H', 'I'].forEach((row, rIdx) => {
+            const y = 440 + rIdx * 50;
+            for (let num = 1; num <= 14; num++) {
+              seatDefs.push({ venueId: venue!.id, section: 'STANDARD', row, number: num, x: 175 + (num - 1) * 50, y, tier: 'STANDARD' });
+            }
+          });
+
+          await prisma.seat.createMany({ data: seatDefs, skipDuplicates: true });
+          venue = await prisma.venue.findUnique({ where: { id: venue.id }, include: { seats: true } });
+        }
       }
 
       // Fallback to default configured venue with seats
@@ -143,7 +199,7 @@ organizerRouter.post(
 
       const event = await prisma.event.create({
         data: {
-          venueId,
+          venueId: venue.id,
           title,
           description,
           startsAt: new Date(startsAt),

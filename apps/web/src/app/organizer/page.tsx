@@ -151,15 +151,6 @@ export default function OrganizerDashboardPage() {
     },
   });
 
-  // Quick organizer demo login handler
-  async function handleOrganizerLogin() {
-    await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'organizer@eventseat.com', password: 'password123' }),
-    });
-    await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-  }
-
   if (authLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-400">
@@ -184,16 +175,13 @@ export default function OrganizerDashboardPage() {
           </div>
 
           <div className="pt-2">
-            <button
-              onClick={handleOrganizerLogin}
+            <Link
+              href="/login"
               className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
             >
-              Sign in as Demo Organizer
+              Sign In to Organizer Account
               <ArrowRight className="w-4 h-4" />
-            </button>
-            <p className="text-[11px] text-slate-500 mt-2">
-              Credentials: organizer@eventseat.com
-            </p>
+            </Link>
           </div>
         </div>
       </main>

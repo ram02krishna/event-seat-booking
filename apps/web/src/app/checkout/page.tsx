@@ -28,18 +28,6 @@ function CheckoutContent() {
   const user = authData?.user;
   const totalCents = selectedSeats.reduce((sum, s) => sum + s.price, 0);
 
-  async function handleQuickLogin(email: string) {
-    try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password: 'password123' }),
-      });
-      await queryClient.invalidateQueries();
-    } catch {
-      // ignore
-    }
-  }
-
   async function handleConfirmBooking() {
     if (!eventId || selectedSeats.length === 0) return;
     setIsLoading(true);
@@ -104,20 +92,14 @@ function CheckoutContent() {
             </div>
           </div>
         ) : (
-          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
-            <p className="text-xs text-amber-300 font-medium">Sign in to complete booking</p>
-            <div className="grid grid-cols-2 gap-2">
-              {['alice@example.com', 'bob@example.com'].map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => handleQuickLogin(e)}
-                  className="py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs transition-colors"
-                >
-                  {e.split('@')[0].charAt(0).toUpperCase() + e.split('@')[0].slice(1)}
-                </button>
-              ))}
-            </div>
+          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 text-center">
+            <p className="text-xs text-slate-300 font-medium">Please sign in to complete your booking</p>
+            <Link
+              href="/login"
+              className="inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+            >
+              Sign In to Continue
+            </Link>
           </div>
         )}
 

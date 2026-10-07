@@ -12,7 +12,8 @@
     "test:load": "tsx scripts/benchmark-concurrency.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:clean": "tsx scripts/clean-db.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
