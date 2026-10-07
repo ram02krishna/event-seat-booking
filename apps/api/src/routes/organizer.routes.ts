@@ -160,3 +160,207 @@ organizerRouter.post(
     }
   }
 );
+
+// Overview stats for organizer dashboard
+organizerRouter.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const totalEvents = await prisma.event.count();
+    const totalVenues = await prisma.venue.count();
+    const totalTicketsSold = await prisma.ticket.count();
+    const revenueAgg = await prisma.order.aggregate({
+      where: { status: 'CONFIRMED' },
+      _sum: { totalCents: true },
+    });
+    const totalRevenueCents = revenueAgg._sum.totalCents || 0;
+
+    const totalSeats = await prisma.eventSeat.count();
+    const overallOccupancyRate = totalSeats > 0 ? Math.round((totalTicketsSold / totalSeats) * 100) : 0;
+
+    const events = await prisma.event.findMany({
+      include: {
+        venue: { select: { name: true } },
+        eventSeats: {
+          select: { status: true, price: true },
+        },
+      },
+      orderBy: { startsAt: 'asc' },
+    });
+
+    const eventStats = events.map((ev) => {
+      const total = ev.eventSeats.length;
+      const sold = ev.eventSeats.filter((s) => s.status === SeatStatus.SOLD).length;
+      const held = ev.eventSeats.filter((s) => s.status === SeatStatus.HELD).length;
+      const available = ev.eventSeats.filter((s) => s.status === SeatStatus.AVAILABLE).length;
+      const revenueCents = ev.eventSeats
+        .filter((s) => s.status === SeatStatus.SOLD)
+        .reduce((sum, s) => sum + s.price, 0);
+      const occupancyRate = total > 0 ? Math.round((sold / total) * 100) : 0;
+
+      return {
+        id: ev.id,
+        title: ev.title,
+        startsAt: ev.startsAt,
+        venueName: ev.venue.name,
+        totalSeats: total,
+        soldSeats: sold,
+        heldSeats: held,
+        availableSeats: available,
+        occupancyRate,
+        revenueCents,
+      };
+    });
+
+    const recentOrders = await prisma.order.findMany({
+      where: { status: 'CONFIRMED' },
+      include: {
+        user: { select: { email: true } },
+        event: { select: { title: true } },
+        tickets: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+    });
+
+    res.status(200).json({
+      summary: {
+        totalEvents,
+        totalVenues,
+        totalTicketsSold,
+        totalRevenueCents,
+        totalSeats,
+        overallOccupancyRate,
+      },
+      events: eventStats,
+      recentOrders: recentOrders.map((o) => ({
+        id: o.id,
+        userEmail: o.user.email,
+        eventTitle: o.event.title,
+        ticketCount: o.tickets.length,
+        totalCents: o.totalCents,
+        createdAt: o.createdAt,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Detailed stats for a single event
+organizerRouter.get('/events/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const eventId = req.params.id as string;
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        venue: true,
+        eventSeats: {
+          include: {
+            seat: true,
+            ticket: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return next(new AppError(404, 'Event not found'));
+    }
+
+    const totalSeats = event.eventSeats.length;
+    const sold = event.eventSeats.filter((s) => s.status === SeatStatus.SOLD).length;
+    const held = event.eventSeats.filter((s) => s.status === SeatStatus.HELD).length;
+    const available = event.eventSeats.filter((s) => s.status === SeatStatus.AVAILABLE).length;
+    const revenueCents = event.eventSeats
+      .filter((s) => s.status === SeatStatus.SOLD)
+      .reduce((sum, s) => sum + s.price, 0);
+    const occupancyRate = totalSeats > 0 ? Math.round((sold / totalSeats) * 100) : 0;
+
+    // Check-in counts
+    const tickets = event.eventSeats
+      .map((es) => es.ticket)
+      .filter((t): t is NonNullable<typeof t> => t !== null && t !== undefined);
+    const totalTickets = tickets.length;
+    const checkedInCount = tickets.filter((t) => t.checkedInAt !== null).length;
+    const checkInRate = totalTickets > 0 ? Math.round((checkedInCount / totalTickets) * 100) : 0;
+
+    // Tier breakdown
+    const tierMap = new Map<
+      string,
+      { total: number; sold: number; held: number; available: number; price: number; revenue: number }
+    >();
+
+    for (const es of event.eventSeats) {
+      const tier = es.seat.tier;
+      if (!tierMap.has(tier)) {
+        tierMap.set(tier, { total: 0, sold: 0, held: 0, available: 0, price: es.price, revenue: 0 });
+      }
+      const item = tierMap.get(tier)!;
+      item.total += 1;
+      if (es.status === SeatStatus.SOLD) {
+        item.sold += 1;
+        item.revenue += es.price;
+      } else if (es.status === SeatStatus.HELD) {
+        item.held += 1;
+      } else {
+        item.available += 1;
+      }
+    }
+
+    const tiers = Array.from(tierMap.entries()).map(([tier, stats]) => ({
+      tier,
+      ...stats,
+      occupancyRate: stats.total > 0 ? Math.round((stats.sold / stats.total) * 100) : 0,
+    }));
+
+    // Recent orders for this event
+    const recentOrders = await prisma.order.findMany({
+      where: { eventId, status: 'CONFIRMED' },
+      include: {
+        user: { select: { email: true } },
+        tickets: {
+          include: {
+            eventSeat: {
+              include: { seat: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    res.status(200).json({
+      event: {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        startsAt: event.startsAt,
+        venueName: event.venue.name,
+      },
+      overview: {
+        totalSeats,
+        soldSeats: sold,
+        heldSeats: held,
+        availableSeats: available,
+        occupancyRate,
+        revenueCents,
+      },
+      checkIn: {
+        totalTickets,
+        checkedInCount,
+        checkInRate,
+      },
+      tiers,
+      recentOrders: recentOrders.map((o) => ({
+        id: o.id,
+        userEmail: o.user.email,
+        totalCents: o.totalCents,
+        createdAt: o.createdAt,
+        seats: o.tickets.map((t) => `${t.eventSeat.seat.row}${t.eventSeat.seat.number}`),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
