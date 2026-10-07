@@ -272,6 +272,14 @@ The platform enforces a real-world role and security hierarchy:
 
 > **Security Note:** Public registration (`POST /api/auth/register`) strictly assigns the `CUSTOMER` role to prevent unauthorized access to organizer and administrative consoles. Only the authenticated Organizer can provision gate Staff accounts.
 
+### Default Testing Credentials
+
+| Role | Email | Password | Primary Portal / Route |
+|---|---|---|---|
+| **ORGANIZER** | `organizer@eventseat.com` | `password123` | `/organizer` (Dashboard, revenue telemetry, staff manager) |
+| **STAFF** | `staff@eventseat.com` | `password123` | `/staff/scanner` (Gate camera QR scanner & turnstile check-in) |
+| **CUSTOMER** | `customer@eventseat.com` | `password123` | `/` & `/my-tickets` (Browse, hold seats, checkout, QR tickets) |
+
 ---
 
 ## Key API Endpoints
