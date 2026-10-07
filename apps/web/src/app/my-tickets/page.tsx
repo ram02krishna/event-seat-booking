@@ -15,7 +15,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { formatINR } from '@/lib/format';
+import { formatINR, formatEventDateTime } from '@/lib/format';
 
 interface TicketItem {
   id: string;
@@ -129,14 +129,7 @@ export default function MyTicketsPage() {
       ) : (
         <div className="space-y-6">
           {orders.map((order) => {
-            const eventDate = new Date(order.event.startsAt).toLocaleDateString('en-IN', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            const eventDate = formatEventDateTime(order.event.startsAt);
 
             return (
               <div

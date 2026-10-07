@@ -8,6 +8,7 @@ import { CartPanel } from '@/components/seat-map/CartPanel';
 import { useEventSocket } from '@/hooks/useEventSocket';
 import { Calendar, MapPin, RefreshCw, ArrowLeft, Users } from 'lucide-react';
 import Link from 'next/link';
+import { formatEventDateTime } from '@/lib/format';
 
 interface EventPageProps {
   params: Promise<{ id: string }>;
@@ -55,16 +56,7 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
   const { venue, seats, event } = data;
   const availableCount = seats.filter((s) => s.status === 'AVAILABLE').length;
 
-  const eventDate = event?.startsAt
-    ? new Date(event.startsAt).toLocaleDateString('en-IN', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  const eventDate = event?.startsAt ? formatEventDateTime(event.startsAt) : null;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">

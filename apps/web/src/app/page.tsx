@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Users } from 'lucide-react';
-import { formatINR } from '@/lib/format';
+import { formatINR, formatEventDate, formatEventTime } from '@/lib/format';
 
 interface EventItem {
   id: string;
@@ -69,16 +69,8 @@ export default function HomePage() {
       ) : (
         <div className="space-y-4">
           {events.map((event) => {
-            const eventDate = new Date(event.startsAt).toLocaleDateString('en-IN', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            });
-            const eventTime = new Date(event.startsAt).toLocaleTimeString('en-IN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            const eventDate = formatEventDate(event.startsAt);
+            const eventTime = formatEventTime(event.startsAt);
 
             const booked = event.totalSeats > 0
               ? Math.round(((event.totalSeats - event.availableSeats) / event.totalSeats) * 100)

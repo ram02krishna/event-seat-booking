@@ -147,9 +147,15 @@ async function main() {
   console.log(`Created ${createdSeats.length} seats for venue`);
 
   // 5. Create 2 Events and link seats
-  const now = new Date();
-  const event1Date = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-  const event2Date = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  // Event 1: Tech Innovation Summit (14 days ahead at 09:30 AM)
+  const event1Date = new Date();
+  event1Date.setDate(event1Date.getDate() + 14);
+  event1Date.setHours(9, 30, 0, 0);
+
+  // Event 2: Indie Rock Music Night (28 days ahead at 07:30 PM)
+  const event2Date = new Date();
+  event2Date.setDate(event2Date.getDate() + 28);
+  event2Date.setHours(19, 30, 0, 0);
 
   const event1 = await prisma.event.create({
     data: {

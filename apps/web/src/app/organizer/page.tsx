@@ -31,7 +31,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { formatINR } from '@/lib/format';
+import { formatINR, formatEventDateTime } from '@/lib/format';
 
 interface EventStat {
   id: string;
@@ -502,6 +502,7 @@ export default function OrganizerDashboardPage() {
                   <input
                     type="datetime-local"
                     value={newStartsAt}
+                    min={new Date().toISOString().slice(0, 16)}
                     onChange={(e) => setNewStartsAt(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
                   />
@@ -683,20 +684,9 @@ export default function OrganizerDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-slate-800/60">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>
-                        {startDate.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}{' '}
-                        •{' '}
-                        {startDate.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </span>
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-slate-800/60">
+                      <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>{formatEventDateTime(ev.startsAt)}</span>
                     </div>
 
                     {/* Capacity Visual Progress Bar */}

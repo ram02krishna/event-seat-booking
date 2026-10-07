@@ -19,7 +19,7 @@ import {
   Clock,
   Layers,
 } from 'lucide-react';
-import { formatINR } from '@/lib/format';
+import { formatINR, formatEventDateTime } from '@/lib/format';
 
 interface TierStat {
   tier: string;
@@ -135,17 +135,7 @@ export default function EventAnalyticsPage({
               <span>•</span>
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-500" />
-                {startDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}{' '}
-                at{' '}
-                {startDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
+                {formatEventDateTime(event.startsAt)}
               </span>
             </div>
           </div>
