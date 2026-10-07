@@ -134,9 +134,9 @@ organizerRouter.post(
 
       // Populate EventSeat records for all venue seats
       const defaultTierPricing: Record<string, number> = {
-        VIP: 8000,
-        PREMIUM: 5000,
-        STANDARD: 3000,
+        VIP: 250000,
+        PREMIUM: 150000,
+        STANDARD: 75000,
         ...pricing,
       };
 

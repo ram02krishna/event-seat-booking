@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  DollarSign,
+  IndianRupee,
   Ticket,
   TrendingUp,
   Calendar,
@@ -20,6 +20,7 @@ import {
   Clock,
   Search,
 } from 'lucide-react';
+import { formatINR } from '@/lib/format';
 
 interface EventStat {
   id: string;
@@ -68,9 +69,9 @@ export default function OrganizerDashboardPage() {
   const [newDesc, setNewDesc] = useState('');
   const [newVenueId, setNewVenueId] = useState('');
   const [newStartsAt, setNewStartsAt] = useState('');
-  const [vipPrice, setVipPrice] = useState('80');
-  const [premiumPrice, setPremiumPrice] = useState('50');
-  const [standardPrice, setStandardPrice] = useState('30');
+  const [vipPrice, setVipPrice] = useState('2500');
+  const [premiumPrice, setPremiumPrice] = useState('1500');
+  const [standardPrice, setStandardPrice] = useState('750');
   const [formError, setFormError] = useState<string | null>(null);
 
   // Auth query
@@ -244,12 +245,12 @@ export default function OrganizerDashboardPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Gross Revenue</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-              <DollarSign className="w-4 h-4" />
+              <IndianRupee className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white tracking-tight">
-              ${((summary?.totalRevenueCents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatINR(summary?.totalRevenueCents ?? 0)}
             </div>
             <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
               <span className="text-emerald-400 font-medium">Confirmed</span> across all events
@@ -383,7 +384,7 @@ export default function OrganizerDashboardPage() {
                       </div>
                       <div className="text-right">
                         <span className="text-xs font-bold text-emerald-400">
-                          ${(ev.revenueCents / 100).toFixed(2)}
+                          {formatINR(ev.revenueCents)}
                         </span>
                         <div className="text-[10px] text-slate-500">Revenue</div>
                       </div>
@@ -522,7 +523,7 @@ export default function OrganizerDashboardPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-emerald-400">
-                          ${(order.totalCents / 100).toFixed(2)}
+                          {formatINR(order.totalCents)}
                         </td>
                         <td className="px-4 py-3 text-right text-slate-500 text-[11px]">
                           {orderDate.toLocaleTimeString('en-US', {
@@ -616,7 +617,7 @@ export default function OrganizerDashboardPage() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-800">
-                  <label className="block text-slate-300 font-medium mb-2">Tier Pricing ($)</label>
+                  <label className="block text-slate-300 font-medium mb-2">Tier Pricing (₹)</label>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <span className="text-[10px] text-amber-400 block mb-1 font-semibold">VIP</span>

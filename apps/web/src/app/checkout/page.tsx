@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import { formatINR } from '@/lib/format';
 
 function CheckoutContent() {
   const router = useRouter();
@@ -98,7 +99,7 @@ function CheckoutContent() {
                   </span>
                 </div>
                 <span className="font-mono font-bold text-emerald-400">
-                  ${(seat.price / 100).toFixed(2)}
+                  {formatINR(seat.price)}
                 </span>
               </div>
             ))}
@@ -109,16 +110,16 @@ function CheckoutContent() {
         <div className="pt-4 border-t border-slate-800 space-y-2 text-xs">
           <div className="flex items-center justify-between text-slate-400">
             <span>Subtotal:</span>
-            <span>${(totalPriceCents / 100).toFixed(2)}</span>
+            <span>{formatINR(totalPriceCents)}</span>
           </div>
           <div className="flex items-center justify-between text-slate-400">
             <span>Booking Fee:</span>
-            <span>$0.00 (Demo Free)</span>
+            <span>₹0.00 (Demo Free)</span>
           </div>
           <div className="flex items-center justify-between text-sm font-bold text-white pt-2 border-t border-slate-800/80">
             <span>Total:</span>
             <span className="text-emerald-400 font-mono text-base">
-              ${(totalPriceCents / 100).toFixed(2)}
+              {formatINR(totalPriceCents)}
             </span>
           </div>
         </div>

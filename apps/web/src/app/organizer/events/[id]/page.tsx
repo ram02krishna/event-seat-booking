@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
-  DollarSign,
+  IndianRupee,
   Ticket,
   TrendingUp,
   Building,
@@ -19,6 +19,7 @@ import {
   Clock,
   Layers,
 } from 'lucide-react';
+import { formatINR } from '@/lib/format';
 
 interface TierStat {
   tier: string;
@@ -179,10 +180,10 @@ export default function EventAnalyticsPage({
         >
           <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
             <span>Show Revenue</span>
-            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <IndianRupee className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-3 text-2xl font-bold text-white tracking-tight">
-            ${(overview.revenueCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            {formatINR(overview.revenueCents)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
             Collected across {overview.soldSeats} booked seats
@@ -297,7 +298,7 @@ export default function EventAnalyticsPage({
                     {t.tier}
                   </span>
                   <span className="text-xs font-bold text-slate-300">
-                    ${(t.price / 100).toFixed(2)} <span className="text-[10px] font-normal text-slate-500">/ seat</span>
+                    {formatINR(t.price)} <span className="text-[10px] font-normal text-slate-500">/ seat</span>
                   </span>
                 </div>
 
@@ -331,7 +332,7 @@ export default function EventAnalyticsPage({
 
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
                   <span className="text-slate-400">Tier Revenue</span>
-                  <span className="font-bold text-emerald-400">${(t.revenue / 100).toFixed(2)}</span>
+                  <span className="font-bold text-emerald-400">{formatINR(t.revenue)}</span>
                 </div>
               </div>
             );
@@ -388,7 +389,7 @@ export default function EventAnalyticsPage({
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-emerald-400">
-                          ${(order.totalCents / 100).toFixed(2)}
+                          {formatINR(order.totalCents)}
                         </td>
                         <td className="px-4 py-3 text-right text-slate-500 text-[11px]">
                           {orderDate.toLocaleTimeString('en-US', {

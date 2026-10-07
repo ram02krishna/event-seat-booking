@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore, SeatItem } from '@/store/cartStore';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { formatINR } from '@/lib/format';
 
 export interface SeatData {
   id: string; // EventSeat id
@@ -328,7 +329,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
 
           <div className="flex items-center gap-3">
             <span className="font-mono font-bold text-emerald-400">
-              ${(hoveredSeat.price / 100).toFixed(2)}
+              {formatINR(hoveredSeat.price)}
             </span>
             <span
               className={`text-[11px] font-medium ${

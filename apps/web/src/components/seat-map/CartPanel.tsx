@@ -6,6 +6,7 @@ import { useCartStore } from '@/store/cartStore';
 import { apiFetch } from '@/lib/api';
 import { Clock, Trash2, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { formatINR } from '@/lib/format';
 
 interface CartPanelProps {
   eventId: string;
@@ -166,7 +167,7 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
               </div>
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-emerald-400 font-semibold">
-                  ${(seat.price / 100).toFixed(2)}
+                  {formatINR(seat.price)}
                 </span>
                 {!isHeld && (
                   <button
@@ -186,7 +187,7 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-400">Total Price:</span>
             <span className="font-mono text-lg font-bold text-white">
-              ${(totalPriceCents / 100).toFixed(2)}
+              {formatINR(totalPriceCents)}
             </span>
           </div>
 

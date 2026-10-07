@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { Ticket, Calendar, MapPin, CheckCircle2, QrCode, ArrowLeft } from 'lucide-react';
+import { formatINR } from '@/lib/format';
 
 interface TicketItem {
   id: string;
@@ -128,7 +129,7 @@ export default function MyTicketsPage() {
                   <div className="text-right">
                     <span className="text-xs text-slate-400 block">Total Paid</span>
                     <span className="font-mono text-lg font-bold text-emerald-400">
-                      ${(order.totalCents / 100).toFixed(2)}
+                      {formatINR(order.totalCents)}
                     </span>
                   </div>
                 </div>

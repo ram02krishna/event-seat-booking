@@ -102,7 +102,7 @@ async function main() {
         x,
         y,
         tier: 'VIP',
-        priceCents: 8000,
+        priceCents: 250000,
       });
     }
   });
@@ -120,7 +120,7 @@ async function main() {
         x,
         y,
         tier: 'PREMIUM',
-        priceCents: 5000,
+        priceCents: 150000,
       });
     }
   });
@@ -138,7 +138,7 @@ async function main() {
         x,
         y,
         tier: 'STANDARD',
-        priceCents: 3000,
+        priceCents: 75000,
       });
     }
   });
