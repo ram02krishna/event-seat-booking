@@ -115,17 +115,28 @@ export default function LoginPage() {
           </div>
 
           {mode === 'register' && (
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Role</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-              >
-                <option value="CUSTOMER">Customer</option>
-                <option value="ORGANIZER">Organizer</option>
-                <option value="STAFF">Staff</option>
-              </select>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-400">Account Role</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'CUSTOMER', label: 'Customer' },
+                  { value: 'ORGANIZER', label: 'Organizer' },
+                  { value: 'STAFF', label: 'Staff' },
+                ].map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setRole(r.value as any)}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                      role === r.value
+                        ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-sm'
+                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

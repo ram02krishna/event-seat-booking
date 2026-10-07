@@ -60,7 +60,8 @@ export const GenerateSeatsSchema = z.object({
 export type GenerateSeatsInput = z.infer<typeof GenerateSeatsSchema>;
 
 export const CreateEventSchema = z.object({
-  venueId: z.string().uuid('Invalid venue ID'),
+  venueId: z.string().optional(),
+  venueName: z.string().optional(),
   title: z.string().min(2, 'Event title is required'),
   description: z.string().optional(),
   startsAt: z.string().datetime('Must be a valid ISO datetime string'),

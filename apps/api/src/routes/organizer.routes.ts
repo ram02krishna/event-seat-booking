@@ -106,12 +106,30 @@ organizerRouter.post(
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { venueId, title, description, startsAt, pricing } = req.body;
+      const { venueId, venueName, title, description, startsAt, pricing } = req.body;
 
-      const venue = await prisma.venue.findUnique({
-        where: { id: venueId },
-        include: { seats: true },
-      });
+      let venue = null;
+      if (venueId) {
+        venue = await prisma.venue.findUnique({
+          where: { id: venueId },
+          include: { seats: true },
+        });
+      }
+
+      if (!venue && venueName && venueName.trim()) {
+        venue = await prisma.venue.findFirst({
+          where: { name: { equals: venueName.trim(), mode: 'insensitive' } },
+          include: { seats: true },
+        });
+      }
+
+      // Fallback to default configured venue with seats
+      if (!venue) {
+        venue = await prisma.venue.findFirst({
+          where: { seats: { some: {} } },
+          include: { seats: true },
+        });
+      }
 
       if (!venue) {
         return next(new AppError(404, 'Venue not found'));
