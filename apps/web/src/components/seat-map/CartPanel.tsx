@@ -105,7 +105,14 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
   }
 
   if (selectedSeats.length === 0 && !isHeld) {
-    return null;
+    return (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+        <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md text-xs text-slate-300">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping inline-block" />
+          <span>Click any armchair to select • Atomic seat lock with zero double-booking</span>
+        </div>
+      </div>
+    );
   }
 
   return (
