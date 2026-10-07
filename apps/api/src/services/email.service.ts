@@ -69,13 +69,21 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       return;
     }
 
-    await resend.emails.send({
-      from: 'SeatLock <tickets@resend.dev>',
-      to: toEmail,
+    const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
+    const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
+
+    const result = await resend.emails.send({
+      from: 'SeatLock <onboarding@resend.dev>',
+      to: recipient,
       subject: `Your Tickets for ${eventTitle}`,
       html,
     });
-    logger.info(`Resend ticket confirmation email sent to ${toEmail}`);
+
+    if (result.error) {
+      logger.error(`Resend API Error: ${result.error.message} (code: ${result.error.name})`);
+    } else {
+      logger.info(`Resend ticket confirmation email sent successfully to ${recipient} (id: ${result.data?.id})`);
+    }
   } catch (err) {
     logger.error(err, `Failed to send Resend email to ${toEmail}`);
   }

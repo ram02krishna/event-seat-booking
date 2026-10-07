@@ -131,6 +131,12 @@ eventsRouter.get('/:id/seats', async (req: Request, res: Response, next: NextFun
 
     res.status(200).json({
       eventId,
+      event: {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        startsAt: event.startsAt,
+      },
       venue: event.venue,
       seats,
     });
