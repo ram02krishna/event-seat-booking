@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { AppError } from '../errors';
+import { scheduleHoldExpiry } from '../jobs/holdExpiry.queue';
 
 const HOLD_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -82,6 +83,16 @@ export async function holdSeats(params: {
 
     return updatedRows;
   });
+
+  // Schedule delayed BullMQ job to automatically release seats if not confirmed
+  await scheduleHoldExpiry(
+    {
+      eventId,
+      seatIds: heldSeats.map((s) => s.seatId),
+      userId,
+    },
+    HOLD_DURATION_MS
+  );
 
   return {
     eventId,
