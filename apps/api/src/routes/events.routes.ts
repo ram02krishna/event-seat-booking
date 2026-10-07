@@ -5,6 +5,7 @@ import { HoldSeatsSchema, ReleaseSeatsSchema } from '@repo/shared';
 import { holdSeats, releaseSeats } from '../services/hold.service';
 import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
+import { broadcastSeatsHeld, broadcastSeatsReleased } from '../socket';
 
 export const eventsRouter = Router();
 
@@ -161,6 +162,13 @@ eventsRouter.post(
         idempotencyKey,
       });
 
+      // Broadcast real-time seat hold to all clients in the room
+      broadcastSeatsHeld(eventId, {
+        seatIds: result.heldSeats.map((s) => s.seatId),
+        heldByUserId: userId,
+        holdExpiresAt: result.holdExpiresAt.toISOString(),
+      });
+
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -185,10 +193,16 @@ eventsRouter.post(
         userId,
       });
 
+      // Broadcast real-time seat release
+      broadcastSeatsReleased(eventId, {
+        seatIds,
+      });
+
       res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 );
+
 

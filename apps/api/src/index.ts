@@ -1,8 +1,15 @@
+import http from 'http';
 import { app } from './app';
 import { config } from './config';
 import { logger } from './logger';
+import { initSocket } from './socket';
 
-const server = app.listen(config.PORT, () => {
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocket(server);
+
+server.listen(config.PORT, () => {
   logger.info(`API server running on http://localhost:${config.PORT}`);
 });
 

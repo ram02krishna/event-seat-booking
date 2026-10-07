@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { SeatMap, SeatData } from '@/components/seat-map/SeatMap';
 import { CartPanel } from '@/components/seat-map/CartPanel';
-import { Calendar, MapPin, Sparkles, RefreshCw } from 'lucide-react';
+import { useEventSocket } from '@/hooks/useEventSocket';
+import { Calendar, MapPin, Sparkles, RefreshCw, Radio } from 'lucide-react';
 import Link from 'next/link';
 
 interface EventPageProps {
@@ -15,6 +16,9 @@ interface EventPageProps {
 export default function EventSeatMapPage({ params }: EventPageProps) {
   const { id: eventId } = use(params);
 
+  // Real-time Socket.IO room sync
+  useEventSocket(eventId);
+
   const { data, isLoading, isError, refetch } = useQuery<{
     eventId: string;
     venue: { id: string; name: string; layout: any };
@@ -22,7 +26,6 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
   }>({
     queryKey: ['events', eventId, 'seats'],
     queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
-    refetchInterval: 10000, // Poll fallback until Socket.IO in Phase 6
   });
 
   if (isLoading) {
@@ -61,8 +64,9 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Live Availability
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live Sync
               </span>
               <span className="text-xs text-slate-400">
                 {availableCount} of {seats.length} seats available
