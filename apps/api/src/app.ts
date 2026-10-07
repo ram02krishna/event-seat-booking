@@ -5,6 +5,10 @@ import { config } from './config';
 import { logger } from './logger';
 import { errorHandler, notFoundHandler } from './errors';
 import { HealthResponse } from '@repo/shared';
+import { attachUser } from './middleware/auth';
+import { authRouter } from './routes/auth.routes';
+import { eventsRouter } from './routes/events.routes';
+import { organizerRouter } from './routes/organizer.routes';
 
 export const app = express();
 
@@ -17,6 +21,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(attachUser);
 
 // Request logging
 app.use((req, res, next) => {
@@ -37,6 +42,11 @@ app.get('/health', (_req, res) => {
   };
   res.status(200).json(data);
 });
+
+// Routes
+app.use('/api/auth', authRouter);
+app.use('/api/events', eventsRouter);
+app.use('/api/organizer', organizerRouter);
 
 // 404 & error handlers
 app.use(notFoundHandler);
