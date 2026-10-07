@@ -12,12 +12,15 @@
   },
   "dependencies": {
     "@repo/shared": "workspace:*",
+    "@tanstack/react-query": "^5.66.0",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.4.3",
     "lucide-react": "^0.475.0",
     "next": "^15.1.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.0.1"
+    "tailwind-merge": "^3.0.1",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
