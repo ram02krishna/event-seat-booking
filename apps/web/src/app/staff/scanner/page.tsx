@@ -210,15 +210,31 @@ export default function StaffScannerPage() {
 
         {/* Manual Token input (Great for demo / quick test) */}
         <div className="space-y-2 pt-2 border-t border-slate-800/80">
-          <label className="block text-xs font-medium text-slate-400">
-            Manual Token Verification (paste UUID)
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-medium text-slate-400">
+              Manual Token / UUID Verification
+            </label>
+            <Link
+              href="/my-tickets"
+              className="text-[11px] text-indigo-400 hover:text-indigo-300 underline"
+            >
+              Open My Tickets &rarr;
+            </Link>
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Paste the UUID Token from the attendee&apos;s ticket or click &quot;Copy UUID&quot; from their ticket pass.
+          </p>
           <div className="flex gap-2">
             <input
               type="text"
               placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && manualToken.trim()) {
+                  handleValidateToken(manualToken);
+                }
+              }}
               className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
             />
             <button

@@ -141,6 +141,7 @@ export async function finalizeOrder(orderId: string) {
       venueName: finalized.event.venue.name,
       tickets: ticketsWithQRs.map((t) => ({
         ticketId: t.id,
+        qrToken: t.qrToken,
         seatLabel: `Row ${t.seat.row}, Seat ${t.seat.number}`,
         tier: t.seat.tier,
         priceCents: t.price,

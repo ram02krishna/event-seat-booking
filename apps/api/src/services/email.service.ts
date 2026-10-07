@@ -9,6 +9,7 @@ export interface SendTicketsEmailParams {
   venueName: string;
   tickets: Array<{
     ticketId: string;
+    qrToken?: string;
     seatLabel: string;
     tier: string;
     priceCents: number;
@@ -50,6 +51,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
           <div>
             <div style="font-weight: bold; font-size: 16px; color: #ffffff;">${t.seatLabel}</div>
             <div style="color: #818cf8; font-size: 12px; text-transform: uppercase;">${t.tier} • ₹${(t.priceCents / 100).toFixed(2)}</div>
+            <div style="font-family: monospace; font-size: 11px; color: #94a3b8; margin-top: 6px;">UUID: ${t.qrToken || t.ticketId}</div>
           </div>
           <img src="${t.qrDataUrl}" width="80" height="80" alt="Ticket QR" style="border-radius: 6px; background: white; padding: 4px;" />
         </div>

@@ -18,9 +18,15 @@ ticketsRouter.post(
     try {
       const { qrToken } = req.body;
 
-      // 1. Find ticket with order and attendee details
-      const ticket = await prisma.ticket.findUnique({
-        where: { qrToken },
+      const cleanToken = qrToken.trim();
+      // 1. Find ticket with order and attendee details (supports both qrToken and ticket id)
+      const ticket = await prisma.ticket.findFirst({
+        where: {
+          OR: [
+            { qrToken: cleanToken },
+            { id: cleanToken },
+          ],
+        },
         include: {
           order: {
             include: { user: true },
@@ -37,7 +43,7 @@ ticketsRouter.post(
       });
 
       if (!ticket) {
-        return next(new AppError(404, 'Invalid ticket: QR code not recognized'));
+        return next(new AppError(404, 'Invalid ticket: QR code or token not recognized'));
       }
 
       // 2. Immediate check if already used

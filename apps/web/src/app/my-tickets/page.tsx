@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
@@ -11,6 +12,8 @@ import {
   ArrowLeft,
   Printer,
   Clock,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { formatINR } from '@/lib/format';
 
@@ -51,6 +54,15 @@ export default function MyTicketsPage() {
 
   const orders = data?.orders || [];
   const isPageLoading = authLoading || (!!user && isLoading);
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+
+  function handleCopy(token: string, id: string) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(token);
+      setCopiedTokenId(id);
+      setTimeout(() => setCopiedTokenId(null), 2000);
+    }
+  }
 
   async function handleQuickLogin(email: string) {
     try {
@@ -199,37 +211,74 @@ export default function MyTicketsPage() {
                     return (
                       <div
                         key={t.id}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800"
+                        className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3"
                       >
-                        {/* QR */}
-                        <div className="shrink-0 bg-white p-1.5 rounded-lg shadow-md">
-                          <img
-                            src={t.qrDataUrl}
-                            alt="QR"
-                            className="w-16 h-16 object-contain"
-                          />
-                        </div>
+                        <div className="flex items-center gap-4">
+                          {/* QR Thumbnail */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(t.qrToken, t.id)}
+                            className="shrink-0 bg-white p-1.5 rounded-lg shadow-md cursor-pointer hover:ring-2 hover:ring-indigo-500/50 transition-all text-left"
+                            title="Click to copy QR token UUID"
+                          >
+                            <img
+                              src={t.qrDataUrl}
+                              alt="QR Code"
+                              className="w-16 h-16 object-contain"
+                            />
+                          </button>
 
-                        {/* Details */}
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div>
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${tierColor}`}>
-                              {t.seat.tier}
-                            </span>
-                            <p className="text-sm font-semibold text-white mt-1">
+                          {/* Details */}
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${tierColor}`}>
+                                {t.seat.tier}
+                              </span>
+                              <span className="text-xs font-mono font-semibold text-white">{formatINR(t.price)}</span>
+                            </div>
+
+                            <p className="text-sm font-semibold text-white">
                               Row {t.seat.row} &bull; Seat {t.seat.number}
                             </p>
-                            <p className="text-xs text-slate-500">Section {t.seat.section}</p>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-400">Section {t.seat.section}</span>
+                              <span className={`flex items-center gap-1 text-[11px] font-medium ${t.checkedInAt ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                {t.checkedInAt
+                                  ? <><Clock className="w-3 h-3" /> Used</>
+                                  : <><CheckCircle2 className="w-3 h-3" /> Valid</>}
+                              </span>
+                            </div>
                           </div>
+                        </div>
 
-                          <div className="flex items-center justify-between">
-                            <span className={`flex items-center gap-1 text-[11px] font-medium ${t.checkedInAt ? 'text-slate-500' : 'text-emerald-400'}`}>
-                              {t.checkedInAt
-                                ? <><Clock className="w-3 h-3" /> Used</>
-                                : <><CheckCircle2 className="w-3 h-3" /> Valid</>}
-                            </span>
-                            <span className="text-xs font-mono text-slate-400">{formatINR(t.price)}</span>
+                        {/* Ticket UUID row */}
+                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                              Ticket Token / UUID
+                            </p>
+                            <p className="text-xs font-mono text-slate-300 truncate select-all" title={t.qrToken}>
+                              {t.qrToken}
+                            </p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(t.qrToken, t.id)}
+                            className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 border border-slate-700/80 transition-colors"
+                            title="Copy UUID for Staff Check-in"
+                          >
+                            {copiedTokenId === t.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-emerald-400 font-semibold">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy UUID</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     );
