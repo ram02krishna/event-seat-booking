@@ -9,7 +9,8 @@
     "build": "pnpm --recursive run build",
     "lint": "pnpm --recursive run lint",
     "typecheck": "pnpm --recursive run typecheck",
-    "test": "pnpm --recursive run test"
+    "test": "pnpm --recursive run test",
+    "test:load": "pnpm --filter api test:load"
   },
   "devDependencies": {
     "prettier": "^3.5.0",

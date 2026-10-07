@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo \"No lint config for api yet\"",
     "test": "vitest run",
+    "test:load": "tsx scripts/benchmark-concurrency.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts"
