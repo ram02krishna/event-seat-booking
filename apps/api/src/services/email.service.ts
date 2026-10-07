@@ -101,7 +101,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
           <!-- Header Bar -->
           <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 24px 20px; text-align: center;">
             <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #c7d2fe; margin-bottom: 4px;">
-              SeatLock &bull; Official Ticket Pass
+              Official Ticket Pass
             </div>
             <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">
               Booking Confirmed!
@@ -145,7 +145,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
 
             <div style="font-size: 12px; color: #64748b; margin-top: 24px; text-align: center; line-height: 1.5; border-top: 1px solid #1e293b; padding-top: 18px;">
               Please present this email with the QR code at the entrance turnstile for admission.<br />
-              If you have any questions, visit SeatLock online or contact support.
+              If you have any questions, access your tickets online or contact support.
             </div>
           </div>
         </div>
@@ -172,7 +172,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
     });
 
     const result = await resend.emails.send({
-      from: 'SeatLock <onboarding@resend.dev>',
+      from: 'Tickets <onboarding@resend.dev>',
       to: recipient,
       subject: `Your Tickets for ${eventTitle} (Order #${orderId.slice(0, 8)})`,
       html,

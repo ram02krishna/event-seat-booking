@@ -19,7 +19,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     try {
-      const stored = localStorage.getItem('seatlock-theme') as Theme | null;
+      const stored = (localStorage.getItem('app-theme') || localStorage.getItem('seatlock-theme')) as Theme | null;
       if (stored === 'light' || stored === 'dark') {
         setThemeState(stored);
         document.documentElement.classList.remove('light', 'dark');
@@ -39,7 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     try {
-      localStorage.setItem('seatlock-theme', newTheme);
+      localStorage.setItem('app-theme', newTheme);
     } catch {
       // ignore
     }

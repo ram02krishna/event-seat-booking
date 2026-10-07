@@ -4,7 +4,7 @@ import { Providers } from '@/components/providers';
 import { Navbar } from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'SeatLock — Event Ticketing',
+  title: 'Event Seat Booking & Live Ticketing',
   description: 'Reserve your seats with real-time availability and zero double-booking.',
 };
 
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `
               (function() {
                 try {
-                  var stored = localStorage.getItem('seatlock-theme');
+                  var stored = localStorage.getItem('app-theme') || localStorage.getItem('seatlock-theme');
                   var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                   document.documentElement.classList.remove('light', 'dark');
                   document.documentElement.classList.add(theme);

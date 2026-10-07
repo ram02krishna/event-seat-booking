@@ -1,4 +1,4 @@
-# SeatLock Concurrency & Load Testing
+# Event Booking Concurrency & Load Testing
 
 This directory contains load tests designed to verify concurrency safety, deadlock prevention, and the **zero double-booking guarantee** under flash-sale spikes.
 
