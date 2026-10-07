@@ -6,6 +6,7 @@ import { initSocket } from './socket';
 import { startHoldExpiryWorker } from './jobs/holdExpiry.worker';
 import { startPeriodicCleanup } from './jobs/cleanup.job';
 import { redisConnection } from './redis';
+import { ensureDefaultOrganizer } from './services/organizerInit.service';
 
 const server = http.createServer(app);
 
@@ -16,8 +17,9 @@ initSocket(server);
 const worker = startHoldExpiryWorker();
 const stopCleanup = startPeriodicCleanup(60000);
 
-server.listen(config.PORT, () => {
+server.listen(config.PORT, async () => {
   logger.info(`API server running on http://localhost:${config.PORT}`);
+  await ensureDefaultOrganizer();
 });
 
 async function shutdown() {

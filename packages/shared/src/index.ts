@@ -19,9 +19,15 @@ export interface HealthResponse {
 export const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: UserRoleSchema.default('CUSTOMER'),
+  role: UserRoleSchema.default('CUSTOMER').optional(),
 });
 export type RegisterInput = z.infer<typeof RegisterSchema>;
+
+export const CreateStaffSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+export type CreateStaffInput = z.infer<typeof CreateStaffSchema>;
 
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),

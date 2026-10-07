@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'CUSTOMER' | 'ORGANIZER' | 'STAFF'>('CUSTOMER');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,8 +22,10 @@ export default function LoginPage() {
     setError(null);
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = mode === 'login' ? { email, password } : { email, password, role };
-      await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      await apiFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       router.push('/');
     } catch (err: any) {
@@ -96,32 +97,6 @@ export default function LoginPage() {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
-
-          {mode === 'register' && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-400">Account Role</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: 'CUSTOMER', label: 'Customer' },
-                  { value: 'ORGANIZER', label: 'Organizer' },
-                  { value: 'STAFF', label: 'Staff' },
-                ].map((r) => (
-                  <button
-                    key={r.value}
-                    type="button"
-                    onClick={() => setRole(r.value as any)}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
-                      role === r.value
-                        ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-sm'
-                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
-                    }`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {error && (
             <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">

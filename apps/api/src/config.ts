@@ -10,6 +10,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
   JWT_SECRET: z.string().default('supersecretdevkey1234567890_min32chars'),
+  ORGANIZER_EMAIL: z.string().email().default('organizer@eventseat.com'),
+  ORGANIZER_PASSWORD: z.string().default('password123'),
 });
 
 const parsed = envSchema.safeParse(process.env);

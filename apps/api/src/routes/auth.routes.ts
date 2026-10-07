@@ -6,6 +6,7 @@ import { RegisterSchema, LoginSchema } from '@repo/shared';
 import { AppError } from '../errors';
 import { signToken, requireAuth } from '../middleware/auth';
 import { config } from '../config';
+import { Role } from '@prisma/client';
 
 export const authRouter = Router();
 
@@ -16,13 +17,13 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// Register
+// Register - Strictly creates CUSTOMER accounts for public users
 authRouter.post(
   '/register',
   validateBody(RegisterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { email, password, role } = req.body;
+      const { email, password } = req.body;
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
@@ -34,7 +35,7 @@ authRouter.post(
         data: {
           email,
           passwordHash,
-          role,
+          role: Role.CUSTOMER,
         },
       });
 

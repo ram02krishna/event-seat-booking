@@ -21,6 +21,8 @@ import {
   Search,
   X,
   MapPin,
+  UserPlus,
+  Trash2,
 } from 'lucide-react';
 import { formatINR } from '@/lib/format';
 
@@ -148,6 +150,57 @@ export default function OrganizerDashboardPage() {
     },
     onError: (err: any) => {
       setFormError(err.message || 'Failed to create event');
+    },
+  });
+
+  // Staff management state
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffError, setStaffError] = useState<string | null>(null);
+  const [staffSuccess, setStaffSuccess] = useState<string | null>(null);
+
+  // Staff query
+  const { data: staffData, isLoading: staffLoading } = useQuery<{
+    staff: Array<{ id: string; email: string; role: string; createdAt: string }>;
+  }>({
+    queryKey: ['organizer', 'staff'],
+    queryFn: () => apiFetch('/api/organizer/staff'),
+    enabled: isOrganizer,
+  });
+
+  const staffMembers = staffData?.staff || [];
+
+  // Create staff mutation
+  const createStaffMutation = useMutation({
+    mutationFn: async () => {
+      if (!staffEmail.trim()) throw new Error('Please enter a staff email');
+      if (staffPassword.length < 6) throw new Error('Password must be at least 6 characters');
+
+      return apiFetch('/api/organizer/staff', {
+        method: 'POST',
+        body: JSON.stringify({ email: staffEmail.trim(), password: staffPassword }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] });
+      setStaffSuccess(`Staff account (${staffEmail.trim()}) successfully created!`);
+      setStaffEmail('');
+      setStaffPassword('');
+      setStaffError(null);
+      setTimeout(() => setStaffSuccess(null), 3500);
+    },
+    onError: (err: any) => {
+      setStaffError(err.message || 'Failed to create staff account');
+    },
+  });
+
+  // Delete staff mutation
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiFetch(`/api/organizer/staff/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] });
     },
   });
 
@@ -764,6 +817,139 @@ export default function OrganizerDashboardPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Staff Management Section */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <span>Gate Staff & Scanner Accounts</span>
+              <span className="text-xs font-normal text-slate-400">({staffMembers.length})</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Only you (Organizer) can create staff accounts for gate verification at <code className="text-indigo-400">/staff/scanner</code>.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Create Staff Form Card */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-white">Add Staff Member</h3>
+            </div>
+
+            {staffSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{staffSuccess}</span>
+              </div>
+            )}
+
+            {staffError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                {staffError}
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createStaffMutation.mutate();
+              }}
+              className="space-y-3"
+            >
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-slate-400">Staff Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="gatekeeper@event.com"
+                  value={staffEmail}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-slate-400">Password (min 6 chars)</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="••••••••"
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={createStaffMutation.isPending}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{createStaffMutation.isPending ? 'Creating Account...' : 'Create Staff Account'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Staff Accounts List */}
+          <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden flex flex-col justify-between">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-white uppercase tracking-wider">Authorized Gate Staff</span>
+              <span className="text-[11px] text-slate-500 font-mono">{staffMembers.length} active</span>
+            </div>
+
+            <div className="divide-y divide-slate-800/60 overflow-y-auto max-h-64">
+              {staffLoading ? (
+                <div className="p-6 text-center text-xs text-slate-500">Loading staff roster...</div>
+              ) : staffMembers.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-500 space-y-1">
+                  <p>No staff accounts created yet.</p>
+                  <p className="text-[11px]">Create staff accounts here so your team can log in and scan tickets at gates.</p>
+                </div>
+              ) : (
+                staffMembers.map((member) => (
+                  <div key={member.id} className="p-3.5 px-4 flex items-center justify-between gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-white truncate">{member.email}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          {member.role}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Added {new Date(member.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Revoke scanner access for ${member.email}?`)) {
+                          deleteStaffMutation.mutate(member.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      title="Revoke staff account"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
+              <span>Staff accounts log in at <code>/login</code> and verify tickets at <code>/staff/scanner</code></span>
+            </div>
           </div>
         </div>
       </section>

@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../db';
 import { validateBody } from '../middleware/validate';
-import { CreateVenueSchema, CreateEventSchema, GenerateSeatsSchema } from '@repo/shared';
+import { CreateVenueSchema, CreateEventSchema, GenerateSeatsSchema, CreateStaffSchema } from '@repo/shared';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../errors';
 import { Role, SeatStatus } from '@prisma/client';
@@ -437,4 +438,81 @@ organizerRouter.get('/events/:id/stats', async (req: Request, res: Response, nex
     next(err);
   }
 });
+
+// List staff accounts
+organizerRouter.get('/staff', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const staff = await prisma.user.findMany({
+      where: { role: Role.STAFF },
+      select: { id: true, email: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.status(200).json({ staff });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Create a new staff account (strictly organizer only)
+organizerRouter.post(
+  '/staff',
+  validateBody(CreateStaffSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = req.body;
+
+      const existing = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existing) {
+        return next(new AppError(409, 'User with this email already exists'));
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const newStaff = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          role: Role.STAFF,
+        },
+        select: { id: true, email: true, role: true, createdAt: true },
+      });
+
+      res.status(201).json({
+        message: 'Staff account successfully created',
+        staff: newStaff,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Delete/Revoke a staff account
+organizerRouter.delete(
+  '/staff/:id',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+
+      const staffUser = await prisma.user.findFirst({
+        where: { id, role: Role.STAFF },
+      });
+
+      if (!staffUser) {
+        return next(new AppError(404, 'Staff account not found'));
+      }
+
+      await prisma.user.delete({
+        where: { id },
+      });
+
+      res.status(200).json({ message: 'Staff account removed successfully' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 
