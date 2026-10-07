@@ -9,6 +9,7 @@ import { attachUser } from './middleware/auth';
 import { authRouter } from './routes/auth.routes';
 import { eventsRouter } from './routes/events.routes';
 import { organizerRouter } from './routes/organizer.routes';
+import { ordersRouter } from './routes/orders.routes';
 
 export const app = express();
 
@@ -47,6 +48,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/organizer', organizerRouter);
+app.use('/api/orders', ordersRouter);
 
 // 404 & error handlers
 app.use(notFoundHandler);

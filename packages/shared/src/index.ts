@@ -80,3 +80,12 @@ export const ReleaseSeatsSchema = z.object({
 });
 export type ReleaseSeatsInput = z.infer<typeof ReleaseSeatsSchema>;
 
+// Order confirmation schema
+export const ConfirmOrderSchema = z.object({
+  eventId: z.string().uuid('Invalid event ID'),
+  seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat').max(6),
+  idempotencyKey: z.string().optional(),
+});
+export type ConfirmOrderInput = z.infer<typeof ConfirmOrderSchema>;
+
+
