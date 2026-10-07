@@ -67,3 +67,16 @@ export const CreateEventSchema = z.object({
   pricing: z.record(z.number().int().positive()).optional(), // tier -> priceCents override
 });
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
+
+// Seat hold schemas
+export const HoldSeatsSchema = z.object({
+  seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat').max(6, 'Maximum 6 seats per hold'),
+  idempotencyKey: z.string().optional(),
+});
+export type HoldSeatsInput = z.infer<typeof HoldSeatsSchema>;
+
+export const ReleaseSeatsSchema = z.object({
+  seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat'),
+});
+export type ReleaseSeatsInput = z.infer<typeof ReleaseSeatsSchema>;
+

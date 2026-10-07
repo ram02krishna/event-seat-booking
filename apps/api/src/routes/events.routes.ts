@@ -1,6 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../db';
 import { AppError } from '../errors';
+import { HoldSeatsSchema, ReleaseSeatsSchema } from '@repo/shared';
+import { holdSeats, releaseSeats } from '../services/hold.service';
+import { requireAuth } from '../middleware/auth';
+import { validateBody } from '../middleware/validate';
 
 export const eventsRouter = Router();
 
@@ -138,3 +142,53 @@ eventsRouter.get('/:id/seats', async (req: Request, res: Response, next: NextFun
     next(err);
   }
 });
+
+// Hold seats (Atomic, concurrency-safe, all-or-nothing)
+eventsRouter.post(
+  '/:id/hold',
+  requireAuth,
+  validateBody(HoldSeatsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventId = req.params.id as string;
+      const { seatIds, idempotencyKey } = req.body;
+      const userId = req.user!.userId;
+
+      const result = await holdSeats({
+        eventId,
+        seatIds,
+        userId,
+        idempotencyKey,
+      });
+
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Release held seats
+eventsRouter.post(
+  '/:id/release',
+  requireAuth,
+  validateBody(ReleaseSeatsSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventId = req.params.id as string;
+      const { seatIds } = req.body;
+      const userId = req.user!.userId;
+
+      const result = await releaseSeats({
+        eventId,
+        seatIds,
+        userId,
+      });
+
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
