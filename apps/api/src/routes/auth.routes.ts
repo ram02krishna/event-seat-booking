@@ -19,10 +19,12 @@ import { sendOtpEmail } from '../services/email.service';
 
 export const authRouter = Router();
 
+const isProduction = config.NODE_ENV === 'production';
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: config.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: isProduction,
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -297,7 +299,7 @@ authRouter.post(
 
 // Logout
 authRouter.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie('token');
+  res.clearCookie('token', COOKIE_OPTIONS);
   return res.status(200).json({ message: 'Logged out successfully' });
 });
 

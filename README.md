@@ -304,3 +304,8 @@ pnpm --filter api run prisma:seed
 ```
 
 ---
+
+## Deployment
+
+Detailed instructions for deploying the frontend on **Vercel** and connecting it to the production API server are documented in [VERCEL_DEPLOYMENT.md](file:///d:/WorkSpace/event-seat-booking/VERCEL_DEPLOYMENT.md).
+

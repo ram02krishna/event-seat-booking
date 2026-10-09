@@ -7,6 +7,8 @@
     "dev:web": "pnpm --filter web dev",
     "dev": "pnpm --parallel --filter api --filter web dev",
     "build": "pnpm --recursive run build",
+    "build:web": "pnpm --filter @repo/shared build && pnpm --filter web build",
+    "build:api": "pnpm --filter @repo/shared build && pnpm --filter api build",
     "lint": "pnpm --recursive run lint",
     "typecheck": "pnpm --recursive run typecheck",
     "db:studio": "pnpm --filter api prisma:studio",

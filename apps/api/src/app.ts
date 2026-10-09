@@ -12,11 +12,19 @@ import { organizerRouter } from './routes/organizer.routes';
 import { ordersRouter } from './routes/orders.routes';
 import { ticketsRouter } from './routes/tickets.routes';
 
+import { isOriginAllowed } from './cors';
+
 export const app = express();
 
 app.use(
   cors({
-    origin: config.CLIENT_URL,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   })
 );
