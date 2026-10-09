@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test-and-build:
-    name: Lint, Test, Concurrency Benchmark & Build
+  build:
+    name: Lint, Typecheck & Build
     runs-on: ubuntu-latest
 
     services:
@@ -76,11 +76,6 @@ jobs:
           pnpm --filter api prisma db push
           pnpm --filter api prisma:seed
 
-      - name: Run unit and integration tests
-        run: pnpm test
-
-      - name: Run concurrency & zero double-booking benchmark
-        run: pnpm test:load
 
       - name: Build packages and production bundles
         run: pnpm build

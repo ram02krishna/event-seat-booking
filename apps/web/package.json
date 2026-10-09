@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "echo \"No lint config for web yet\"",
-    "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests for web yet\""
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/shared": "workspace:*",

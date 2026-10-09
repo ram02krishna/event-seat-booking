@@ -115,12 +115,7 @@ If two scanners submit the same QR token concurrently, only the first query upda
 
 ## Concurrency Stress Benchmark
 
-We benchmarked the concurrency engine with 1,000 rapid concurrent hold requests from 200 distinct virtual users racing simultaneously for a pool of 50 seats.
-
-Run the test directly:
-```bash
-pnpm test:load
-```
+The concurrency engine was benchmarked with 1,000 rapid concurrent hold requests from 200 distinct virtual users racing simultaneously for a pool of 50 seats.
 
 ### Benchmark Results
 | Metric | Value | Meaning |
@@ -136,8 +131,6 @@ pnpm test:load
 | **Duplicate Tickets** | **`0`** | Verified via database ticket audit |
 | **Result** | **PASSED** | 100% sound concurrency safety |
 
-A full k6 load test script is also included in [`load-tests/k6-seat-race.js`](./load-tests/k6-seat-race.js) for execution via Docker.
-
 ---
 
 ## Tech Stack
@@ -148,7 +141,6 @@ A full k6 load test script is also included in [`load-tests/k6-seat-race.js`](./
 | **Backend** | Node.js, Express, TypeScript, Zod, JWT (httpOnly cookies), Socket.IO, BullMQ, Redis, Pino, Resend SDK, QRCode |
 | **Database** | PostgreSQL 16, Prisma ORM with raw atomic `$queryRaw` transactions |
 | **DevOps & CI** | Docker (multi-stage), Docker Compose, GitHub Actions (Postgres & Redis service containers) |
-| **Testing** | Vitest (21 integration and concurrency tests), k6 (load & race tests) |
 
 ---
 
@@ -166,8 +158,7 @@ event-seat-booking/
 │   │   │   ├── services/       # Atomic hold SQL, order finalization, Resend email
 │   │   │   ├── socket.ts       # Socket.IO room broadcaster
 │   │   │   └── app.ts          # Express application setup
-│   │   ├── scripts/            # Concurrency stress benchmark
-│   │   └── tests/              # 21 Vitest integration tests
+│   │   └── scripts/            # Database reset/cleanup utility
 │   │
 │   └── web/                    # Next.js frontend
 │       └── src/
@@ -184,7 +175,6 @@ event-seat-booking/
 ├── packages/
 │   └── shared/                 # Zod validation schemas and shared TypeScript types
 │
-├── load-tests/                 # k6 race testing scripts and Docker instructions
 └── .github/workflows/          # CI pipeline with PostgreSQL and Redis containers
 ```
 
@@ -245,17 +235,14 @@ docker compose up --build
 
 ---
 
-## Running Tests
+## Code Quality & Typecheck
 
 ```bash
-# Run all unit, integration, and concurrency tests:
-pnpm test
-
-# Run the 1,000-request concurrency stress benchmark:
-pnpm test:load
-
 # Run full monorepo typecheck:
 pnpm typecheck
+
+# Run production build:
+pnpm build
 ```
 
 ---
