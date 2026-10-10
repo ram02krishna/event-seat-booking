@@ -56,6 +56,77 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
   }
 });
 
+// Authenticated or guest check: Get current user's active seat hold if any
+eventsRouter.get('/active-hold', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(200).json({ hold: null });
+    }
+
+    const now = new Date();
+    const heldSeats = await prisma.eventSeat.findMany({
+      where: {
+        heldByUserId: userId,
+        status: 'HELD',
+        holdExpiresAt: { gt: now },
+      },
+      include: {
+        seat: true,
+        event: {
+          select: {
+            id: true,
+            title: true,
+            startsAt: true,
+            venue: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: [
+        { seat: { section: 'asc' } },
+        { seat: { row: 'asc' } },
+        { seat: { number: 'asc' } },
+      ],
+    });
+
+    if (heldSeats.length === 0) {
+      return res.status(200).json({ hold: null });
+    }
+
+    const event = heldSeats[0]!.event;
+    const earliestExpiry = heldSeats.reduce((earliest, s) => {
+      if (!s.holdExpiresAt) return earliest;
+      return earliest
+        ? new Date(s.holdExpiresAt) < new Date(earliest)
+          ? s.holdExpiresAt
+          : earliest
+        : s.holdExpiresAt;
+    }, heldSeats[0]!.holdExpiresAt);
+
+    return res.status(200).json({
+      hold: {
+        eventId: event.id,
+        eventTitle: event.title,
+        venueName: event.venue?.name,
+        startsAt: event.startsAt,
+        holdExpiresAt: earliestExpiry?.toISOString() || null,
+        seats: heldSeats.map((es) => ({
+          id: es.id,
+          seatId: es.seat.id,
+          section: es.seat.section,
+          row: es.seat.row,
+          number: es.seat.number,
+          tier: es.seat.tier,
+          price: es.price,
+        })),
+        totalPrice: heldSeats.reduce((sum, s) => sum + s.price, 0),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Public: Get single event details with venue layout
 eventsRouter.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -173,6 +244,12 @@ eventsRouter.post(
         heldByUserId: userId,
         holdExpiresAt: result.holdExpiresAt.toISOString(),
       });
+
+      if (result.releasedSeatIds && result.releasedSeatIds.length > 0) {
+        broadcastSeatsReleased(eventId, {
+          seatIds: result.releasedSeatIds,
+        });
+      }
 
       res.status(200).json(result);
     } catch (err) {

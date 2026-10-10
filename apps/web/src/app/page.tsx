@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Users, RefreshCw } from 'lucide-react';
 import { formatINR, formatEventDate, formatEventTime } from '@/lib/format';
+import { ActiveHoldBanner, ActiveHoldInfo } from '@/components/ActiveHoldBanner';
 
 interface EventItem {
   id: string;
@@ -24,10 +25,21 @@ export default function HomePage() {
     queryFn: () => apiFetch('/api/events'),
   });
 
+  const { data: holdData, refetch: refetchHold } = useQuery<{ hold: ActiveHoldInfo | null }>({
+    queryKey: ['active-hold'],
+    queryFn: () => apiFetch('/api/events/active-hold'),
+    refetchInterval: 5000,
+  });
+
   const events = data?.events || [];
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      {/* Active hold banner if user has seats on hold */}
+      {holdData?.hold && (
+        <ActiveHoldBanner hold={holdData.hold} onReleased={() => refetchHold()} />
+      )}
+
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">

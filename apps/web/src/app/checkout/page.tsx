@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { apiFetch } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -14,7 +14,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const eventId = searchParams.get('eventId');
-  const { selectedSeats, clearHold } = useCartStore();
+  const { selectedSeats, clearHold, restoreHold } = useCartStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,51 @@ function CheckoutContent() {
     queryFn: () => apiFetch('/api/auth/me'),
     retry: false,
   });
+
+  // Query seats if selectedSeats is empty to restore server-held seats
+  const { data: seatData, isLoading: isSeatsLoading } = useQuery({
+    queryKey: ['events', eventId, 'seats'],
+    queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
+    enabled: !!eventId && selectedSeats.length === 0,
+    retry: 1,
+  });
+
+  // Auto-restore held seats if available
+  useEffect(() => {
+    if (selectedSeats.length > 0 || !seatData?.seats || !eventId) return;
+
+    const now = new Date();
+    const myHeld = seatData.seats.filter(
+      (s: any) => s.status === 'HELD' && s.isHeldByMe && s.holdExpiresAt && new Date(s.holdExpiresAt) > now
+    );
+
+    if (myHeld.length > 0) {
+      const earliestExpiry = myHeld.reduce((earliest: string | null, s: any) => {
+        if (!s.holdExpiresAt) return earliest;
+        return earliest
+          ? new Date(s.holdExpiresAt) < new Date(earliest)
+            ? s.holdExpiresAt
+            : earliest
+          : s.holdExpiresAt;
+      }, myHeld[0].holdExpiresAt);
+
+      if (earliestExpiry) {
+        restoreHold(
+          eventId,
+          myHeld.map((s: any) => ({
+            id: s.id,
+            seatId: s.seatId,
+            section: s.section,
+            row: s.row,
+            number: s.number,
+            tier: s.tier,
+            price: s.price,
+          })),
+          earliestExpiry
+        );
+      }
+    }
+  }, [seatData, selectedSeats.length, eventId, restoreHold]);
 
   const user = authData?.user;
   const totalCents = selectedSeats.reduce((sum, s) => sum + s.price, 0);
@@ -49,6 +94,15 @@ function CheckoutContent() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (isSeatsLoading && selectedSeats.length === 0) {
+    return (
+      <main className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-slate-400">Restoring your held seats...</p>
+      </main>
+    );
   }
 
   if (selectedSeats.length === 0) {

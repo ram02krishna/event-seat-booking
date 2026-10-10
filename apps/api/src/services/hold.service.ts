@@ -34,7 +34,7 @@ export async function holdSeats(params: {
   }
 
   // Run hold query inside transaction for all-or-nothing atomicity
-  const heldSeats = await prisma.$transaction(async (tx) => {
+  const { heldSeats, releasedSeatIds } = await prisma.$transaction(async (tx) => {
     // One active hold per user per event check
     const existingUserHolds = await tx.eventSeat.findMany({
       where: {
@@ -46,19 +46,35 @@ export async function holdSeats(params: {
       select: { id: true, seatId: true },
     });
 
-    if (existingUserHolds.length > 0) {
-      // Allow idempotent retry if holding the exact same seats
-      const existingIdSet = new Set(existingUserHolds.flatMap((h) => [h.id, h.seatId]));
-      const isSameHold = sortedIds.every((id) => existingIdSet.has(id));
+    const releasedSeatIds: string[] = [];
 
-      if (!isSameHold) {
-        throw new AppError(400, 'You already have an active seat hold for this event');
+    if (existingUserHolds.length > 0) {
+      // Find seats that were held by this user previously but are NOT in the current request
+      const seatsToRelease = existingUserHolds.filter(
+        (h) => !sortedIds.includes(h.id) && !sortedIds.includes(h.seatId)
+      );
+
+      if (seatsToRelease.length > 0) {
+        await tx.eventSeat.updateMany({
+          where: {
+            id: { in: seatsToRelease.map((s) => s.id) },
+            heldByUserId: userId,
+            status: 'HELD',
+          },
+          data: {
+            status: 'AVAILABLE',
+            heldByUserId: null,
+            holdExpiresAt: null,
+            version: { increment: 1 },
+          },
+        });
+        releasedSeatIds.push(...seatsToRelease.map((s) => s.seatId));
       }
     }
 
     // Atomic conditional UPDATE:
-    // Only take seats that are AVAILABLE or whose hold has already expired.
-    // Expired holds count as available inside the query itself.
+    // Only take seats that are AVAILABLE, whose hold has already expired,
+    // OR are already held by this user (allows refreshing/extending hold or re-selecting own seats).
     const updatedRows = await tx.$queryRaw<Array<{ id: string; seatId: string; price: number }>>`
       UPDATE "EventSeat"
       SET 
@@ -71,7 +87,10 @@ export async function holdSeats(params: {
         AND ("seatId" IN (${Prisma.join(sortedIds)}) OR id IN (${Prisma.join(sortedIds)}))
         AND (
           status = 'AVAILABLE'::"SeatStatus"
-          OR (status = 'HELD'::"SeatStatus" AND "holdExpiresAt" < NOW())
+          OR (
+            status = 'HELD'::"SeatStatus"
+            AND ("holdExpiresAt" < NOW() OR "heldByUserId" = ${userId})
+          )
         )
       RETURNING id, "seatId", price;
     `;
@@ -81,7 +100,7 @@ export async function holdSeats(params: {
       throw new AppError(409, 'One or more selected seats are no longer available');
     }
 
-    return updatedRows;
+    return { heldSeats: updatedRows, releasedSeatIds };
   });
 
   // Schedule delayed BullMQ job to automatically release seats if not confirmed
@@ -98,6 +117,7 @@ export async function holdSeats(params: {
     eventId,
     heldSeats,
     holdExpiresAt,
+    releasedSeatIds,
   };
 }
 

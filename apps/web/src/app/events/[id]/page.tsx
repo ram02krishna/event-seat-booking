@@ -1,10 +1,11 @@
 'use client';
 
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { SeatMap, SeatData } from '@/components/seat-map/SeatMap';
 import { CartPanel } from '@/components/seat-map/CartPanel';
+import { useCartStore } from '@/store/cartStore';
 import { useEventSocket } from '@/hooks/useEventSocket';
 import { Calendar, MapPin, RefreshCw, ArrowLeft, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -18,6 +19,19 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
   const { id: eventId } = use(params);
   useEventSocket(eventId);
 
+  const {
+    eventId: cartEventId,
+    heldSeatIds,
+    holdExpiresAt,
+    restoreHold,
+    clearHold,
+    setEventId,
+  } = useCartStore();
+
+  useEffect(() => {
+    setEventId(eventId);
+  }, [eventId, setEventId]);
+
   const { data, isLoading, isError, refetch } = useQuery<{
     eventId: string;
     event?: { id: string; title: string; description?: string; startsAt: string };
@@ -28,6 +42,47 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
     queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
     staleTime: 10000,
   });
+
+  // Synchronize active holds from server to cartStore so payment button and timer are active
+  useEffect(() => {
+    if (!data?.seats) return;
+
+    const now = new Date();
+    const myHeldSeats = data.seats.filter(
+      (s) => s.status === 'HELD' && s.isHeldByMe && s.holdExpiresAt && new Date(s.holdExpiresAt) > now
+    );
+
+    if (myHeldSeats.length > 0) {
+      const earliestExpiry = myHeldSeats.reduce((earliest, s) => {
+        if (!s.holdExpiresAt) return earliest;
+        return earliest
+          ? new Date(s.holdExpiresAt) < new Date(earliest)
+            ? s.holdExpiresAt
+            : earliest
+          : s.holdExpiresAt;
+      }, myHeldSeats[0]?.holdExpiresAt || null);
+
+      if (earliestExpiry) {
+        restoreHold(
+          eventId,
+          myHeldSeats.map((s) => ({
+            id: s.id,
+            seatId: s.seatId,
+            section: s.section,
+            row: s.row,
+            number: s.number,
+            tier: s.tier,
+            price: s.price,
+          })),
+          earliestExpiry
+        );
+      }
+    } else if (cartEventId === eventId && heldSeatIds.length > 0) {
+      if (!holdExpiresAt || new Date(holdExpiresAt) <= now) {
+        clearHold();
+      }
+    }
+  }, [data?.seats, eventId, cartEventId, heldSeatIds.length, holdExpiresAt, restoreHold, clearHold]);
 
   if (isLoading) {
     return (

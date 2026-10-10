@@ -73,7 +73,8 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
 
       setHeldSeats(
         selectedSeats.map((s) => s.id),
-        res.holdExpiresAt
+        res.holdExpiresAt,
+        eventId
       );
       onHoldSuccess?.();
     } catch (err: any) {
@@ -227,7 +228,7 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
                 className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirm Booking</span>
+                <span>Proceed to Payment</span>
               </button>
 
               <button
