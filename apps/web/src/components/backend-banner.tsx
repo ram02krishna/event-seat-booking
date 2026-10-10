@@ -110,45 +110,45 @@ export function BackendBanner() {
   }
 
   return (
-    <div
+    <aside
       role="region"
       aria-label="Backend status notice"
-      className="relative z-50 w-full border-b border-amber-500/25 bg-gradient-to-r from-amber-950/80 via-slate-900/95 to-amber-950/80 text-slate-100 shadow-md backdrop-blur-sm transition-all dark:from-amber-950/80 dark:via-slate-900/95 dark:to-amber-950/80"
-      style={{
-        backgroundColor: undefined,
-      }}
+      className="relative z-50 w-full border-b border-indigo-500/20 bg-[#0c1022]/95 backdrop-blur-md text-slate-200 transition-colors"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
-        {/* Left: Headline & Explanation */}
-        <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
-          <div className="p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 shrink-0 mt-0.5 sm:mt-0">
-            <Server className="w-4 h-4" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
+        {/* Left: Icon, Badge & Explanation */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-500/10">
+            <Server className="w-3.5 h-3.5" />
           </div>
 
-          <div className="leading-relaxed text-slate-200">
-            <span className="font-semibold text-amber-300 mr-1.5">
-              Backend Notice:
+          <div className="leading-snug text-slate-300 flex-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 mr-2 tracking-wide">
+              Backend Notice
             </span>
-            <span>
-              The backend API is deployed on <strong className="text-white font-medium">Render</strong> (free tier). Inactive instances spin down automatically, so the server takes about <strong className="text-amber-200 font-semibold">30–60 seconds</strong> to wake up on the first request.
+            <span className="text-slate-300 text-xs sm:text-sm">
+              Hosted on <strong className="text-white font-medium">Render</strong> (free tier). Inactive instances spin down automatically, so the first request takes about <strong className="text-indigo-300 font-semibold">30–60s</strong> to wake up.
             </span>
           </div>
         </div>
 
         {/* Right: Live Status Indicator & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 self-end sm:self-auto shrink-0">
           {serverState === 'online' ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 shadow-sm shadow-emerald-500/10">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
               <span>Backend Online</span>
             </span>
           ) : (
             <div className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
                 <span>
-                  Waking up server...{' '}
-                  <span className="font-mono text-[11px] opacity-80">
+                  Waking server...{' '}
+                  <span className="font-mono text-[11px] text-indigo-200 opacity-90">
                     ({elapsedSeconds}s)
                   </span>
                 </span>
@@ -156,8 +156,8 @@ export function BackendBanner() {
               <button
                 type="button"
                 onClick={handleManualRetry}
-                title="Retry pinging backend"
-                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+                title="Retry connection"
+                className="p-1 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition-colors cursor-pointer"
                 aria-label="Retry connection check"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -171,12 +171,12 @@ export function BackendBanner() {
             onClick={handleDismiss}
             title="Dismiss notice"
             aria-label="Dismiss notice"
-            className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors ml-1"
+            className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer ml-0.5"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

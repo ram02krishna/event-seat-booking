@@ -49,8 +49,8 @@ export default function HomePage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center space-y-3">
-          <p className="text-amber-400 text-sm font-medium">Could not load events yet.</p>
+        <div className="p-6 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 text-center space-y-3">
+          <p className="text-indigo-300 text-sm font-medium">Could not load events yet.</p>
           <p className="text-slate-400 text-xs max-w-md mx-auto">
             If the backend is waking up from Render&apos;s free tier sleep, cold boot takes about 30–60 seconds.
           </p>

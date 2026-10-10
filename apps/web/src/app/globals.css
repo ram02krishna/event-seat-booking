@@ -329,9 +329,10 @@ html.light .ring-offset-slate-950 {
 
 /* Backend status banner light mode */
 html.light [aria-label="Backend status notice"] {
-  background: linear-gradient(to right, #fffbeb, #f8fafc, #fffbeb) !important;
-  border-bottom-color: #fde68a !important;
+  background: linear-gradient(to right, #f8faff, #f1f5f9, #f8faff) !important;
+  border-bottom-color: #e2e8f0 !important;
 }
+html.light [aria-label="Backend status notice"] .text-slate-300,
 html.light [aria-label="Backend status notice"] .text-slate-200,
 html.light [aria-label="Backend status notice"] .text-slate-100 {
   color: #334155 !important;
@@ -339,8 +340,13 @@ html.light [aria-label="Backend status notice"] .text-slate-100 {
 html.light [aria-label="Backend status notice"] strong.text-white {
   color: #0f172a !important;
 }
-html.light [aria-label="Backend status notice"] .text-amber-300,
-html.light [aria-label="Backend status notice"] .text-amber-200 {
-  color: #b45309 !important;
+html.light [aria-label="Backend status notice"] strong.text-indigo-300 {
+  color: #4f46e5 !important;
+}
+html.light [aria-label="Backend status notice"] .bg-indigo-500\/10,
+html.light [aria-label="Backend status notice"] .bg-indigo-500\/15 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
 }
 
