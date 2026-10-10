@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
-import { Calendar, MapPin, ArrowRight, Users } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Users, RefreshCw } from 'lucide-react';
 import { formatINR, formatEventDate, formatEventTime } from '@/lib/format';
 
 interface EventItem {
@@ -19,7 +19,7 @@ interface EventItem {
 }
 
 export default function HomePage() {
-  const { data, isLoading, isError } = useQuery<{ events: EventItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ events: EventItem[] }>({
     queryKey: ['events'],
     queryFn: () => apiFetch('/api/events'),
   });
@@ -49,9 +49,19 @@ export default function HomePage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="p-6 rounded-2xl bg-rose-500/5 border border-rose-500/20 text-center space-y-1">
-          <p className="text-rose-400 text-sm font-medium">Could not load events.</p>
-          <p className="text-slate-500 text-xs">Please ensure the backend API server is online.</p>
+        <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center space-y-3">
+          <p className="text-amber-400 text-sm font-medium">Could not load events yet.</p>
+          <p className="text-slate-400 text-xs max-w-md mx-auto">
+            If the backend is waking up from Render&apos;s free tier sleep, cold boot takes about 30–60 seconds.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry Loading Events
+          </button>
         </div>
       ) : events.length === 0 ? (
         <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
