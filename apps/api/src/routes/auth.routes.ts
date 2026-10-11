@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db';
 import { validateBody } from '../middleware/validate';
 import {
-  RegisterSchema,
   LoginSchema,
   SendOtpRegisterSchema,
   VerifyOtpRegisterSchema,
@@ -208,49 +207,6 @@ authRouter.post(
           id: updatedUser.id,
           email: updatedUser.email,
           role: updatedUser.role,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// Direct Register (Fallback & programmatic compatibility)
-authRouter.post(
-  '/register',
-  validateBody(RegisterSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const email = req.body.email.trim().toLowerCase();
-      const { password } = req.body;
-
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) {
-        return next(new AppError(409, 'Email already registered'));
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-      const user = await prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          role: Role.CUSTOMER,
-        },
-      });
-
-      const token = signToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-      res.cookie('token', token, COOKIE_OPTIONS);
-      return res.status(201).json({
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
         },
       });
     } catch (err) {

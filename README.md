@@ -257,7 +257,7 @@ The platform enforces a real-world role and security hierarchy:
 | **STAFF** | **Created Exclusively by Organizer** | Provisioned via `/organizer` dashboard | Access `/staff/scanner` live camera QR code turnstile scanner, manual UUID validation, and real-time check-in |
 | **CUSTOMER** | **Public Self-Registration** | Self-signup via `/login` (Register tab) | Browse events, interact with live SVG seat map, hold seats for 5 mins, checkout, view digital tickets with UUIDs, and receive QR emails |
 
-> **Security Note:** Public registration (`POST /api/auth/register`) strictly assigns the `CUSTOMER` role to prevent unauthorized access to organizer and administrative consoles. Only the authenticated Organizer can provision gate Staff accounts.
+> **Security Note:** Public registration (`POST /api/auth/register/verify-otp`) strictly assigns the `CUSTOMER` role to prevent unauthorized access to organizer and administrative consoles. Only the authenticated Organizer can provision gate Staff accounts.
 
 ### Default Testing Credentials
 
@@ -273,7 +273,8 @@ The platform enforces a real-world role and security hierarchy:
 
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | Register new customer account (Public registration) | Public |
+| `POST` | `/api/auth/register/send-otp` | Send 6-digit OTP to email for signup | Public |
+| `POST` | `/api/auth/register/verify-otp` | Verify OTP & create customer account | Public |
 | `POST` | `/api/auth/login` | Login with email and password | Public |
 | `POST` | `/api/auth/logout` | Clear session cookie | Public |
 | `GET` | `/api/auth/me` | Fetch authenticated user profile & role | Authenticated |
