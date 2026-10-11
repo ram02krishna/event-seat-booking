@@ -165,10 +165,14 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
 
     const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
     const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
+    const fromEmail =
+      process.env.RESEND_TICKETS_FROM_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      'Tickets <tickets@ram02krishna.me>';
 
     // Send email with inline QR code URL only (no separate PNG attachments so Gmail won't show attachment cards)
     const result = await resend.emails.send({
-      from: 'Tickets <onboarding@resend.dev>',
+      from: fromEmail,
       to: recipient,
       subject: `Your Tickets for ${eventTitle} (Order #${orderId.slice(0, 8)})`,
       html,
@@ -190,7 +194,13 @@ export interface SendOtpEmailParams {
   purpose: 'signup' | 'reset';
 }
 
-export async function sendOtpEmail(params: SendOtpEmailParams) {
+export interface SendEmailResult {
+  success: boolean;
+  error?: string;
+  isSandboxRestriction?: boolean;
+}
+
+export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmailResult> {
   const { toEmail, otp, purpose } = params;
   const isReset = purpose === 'reset';
   const title = isReset ? 'Reset Your Password' : 'Verify Your Email';
@@ -251,30 +261,48 @@ export async function sendOtpEmail(params: SendOtpEmailParams) {
   // Always log to server logs for easy development & debugging
   logger.info(`[Auth OTP] Verification code for ${toEmail} (${purpose}): ${otp}`);
 
-  try {
-    if (!resend) {
-      logger.info(`[Resend Mock] OTP email logged for ${toEmail}`);
-      return;
-    }
+  if (!resend) {
+    logger.info(`[Resend Mock] Resend API key not configured. OTP logged for ${toEmail}`);
+    return { success: true };
+  }
 
+  try {
     const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
     const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Security <security@ram02krishna.me>';
 
     const result = await resend.emails.send({
-      from: 'Security <onboarding@resend.dev>',
+      from: fromEmail,
       to: recipient,
       subject,
       html,
     });
 
     if (result.error) {
+      const isSandboxRestriction =
+        result.error.name === 'validation_error' &&
+        result.error.message.includes('You can only send testing emails to your own email address');
+
       logger.error(`Resend OTP Error: ${result.error.message} (code: ${result.error.name})`);
-    } else {
-      logger.info(`Resend OTP email sent successfully to ${recipient} (id: ${result.data?.id})`);
+      if (isSandboxRestriction) {
+        logger.warn(
+          `[Resend Notice] Resend sandbox restriction: Test accounts can only send emails to the registered Resend account owner. To send to any recipient, verify your domain at resend.com/domains and set RESEND_FROM_EMAIL.`
+        );
+      }
+      return {
+        success: false,
+        error: result.error.message,
+        isSandboxRestriction,
+      };
     }
-  } catch (err) {
+
+    logger.info(`Resend OTP email sent successfully to ${recipient} (id: ${result.data?.id})`);
+    return { success: true };
+  } catch (err: any) {
     logger.error(err, `Failed to send Resend OTP email to ${toEmail}`);
+    return { success: false, error: err?.message || 'Failed to send verification email' };
   }
 }
+
 
 

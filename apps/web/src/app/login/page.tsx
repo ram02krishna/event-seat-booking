@@ -25,6 +25,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -39,6 +40,7 @@ function LoginForm() {
     setError(null);
     setSuccessMessage(null);
     setOtp('');
+    setDevOtp(null);
   }
 
   // 1. Handle Login
@@ -71,6 +73,10 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
       setSuccessMessage(res.message || 'Verification code sent to your email.');
+      if (res.devOtp) {
+        setDevOtp(res.devOtp);
+        setOtp(res.devOtp);
+      }
       setCountdown(30);
       setMode('register-otp');
     } catch (err: any) {
@@ -110,6 +116,10 @@ function LoginForm() {
         body: JSON.stringify({ email }),
       });
       setSuccessMessage(res.message || 'Password reset code sent to your email.');
+      if (res.devOtp) {
+        setDevOtp(res.devOtp);
+        setOtp(res.devOtp);
+      }
       setCountdown(30);
       setMode('forgot-otp');
     } catch (err: any) {
@@ -148,18 +158,23 @@ function LoginForm() {
     setIsLoading(true);
     setError(null);
     try {
+      let res;
       if (mode === 'register-otp') {
-        await apiFetch('/api/auth/register/send-otp', {
+        res = await apiFetch('/api/auth/register/send-otp', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         });
       } else if (mode === 'forgot-otp') {
-        await apiFetch('/api/auth/forgot-password', {
+        res = await apiFetch('/api/auth/forgot-password', {
           method: 'POST',
           body: JSON.stringify({ email }),
         });
       }
-      setSuccessMessage('A fresh verification code has been sent to your email.');
+      if (res?.devOtp) {
+        setDevOtp(res.devOtp);
+        setOtp(res.devOtp);
+      }
+      setSuccessMessage(res?.message || 'A fresh verification code has been sent to your email.');
       setCountdown(30);
     } catch (err: any) {
       setError(err.message || 'Failed to resend code.');
@@ -341,6 +356,21 @@ function LoginForm() {
         {/* VIEW 3: REGISTER OTP (STEP 2) */}
         {mode === 'register-otp' && (
           <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
+            {devOtp && (
+              <div className="flex items-center justify-between p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+                <span className="truncate">
+                  Dev Code: <strong className="font-mono text-sm tracking-wider text-amber-200">{devOtp}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOtp(devOtp)}
+                  className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold"
+                >
+                  Fill Code
+                </button>
+              </div>
+            )}
+
             <div className="space-y-1 text-center">
               <label className="block text-xs font-medium text-slate-400">
                 6-Digit Verification Code
@@ -425,6 +455,21 @@ function LoginForm() {
         {/* VIEW 5: FORGOT PASSWORD OTP & NEW PASSWORD (STEP 2) */}
         {mode === 'forgot-otp' && (
           <form onSubmit={handleResetPassword} className="space-y-4">
+            {devOtp && (
+              <div className="flex items-center justify-between p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+                <span className="truncate">
+                  Dev Code: <strong className="font-mono text-sm tracking-wider text-amber-200">{devOtp}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOtp(devOtp)}
+                  className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold"
+                >
+                  Fill Code
+                </button>
+              </div>
+            )}
+
             <div className="space-y-1">
               <label className="block text-xs font-medium text-slate-400 text-center">
                 6-Digit Reset Code

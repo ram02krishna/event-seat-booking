@@ -55,16 +55,40 @@ authRouter.post(
         JSON.stringify({ otp, passwordHash })
       );
 
-      await sendOtpEmail({
+      const emailResult = await sendOtpEmail({
         toEmail: email,
         otp,
         purpose: 'signup',
       });
 
-      return res.status(200).json({
+      const responsePayload: { message: string; email: string; devOtp?: string } = {
         message: 'Verification code sent to your email',
         email,
-      });
+      };
+
+      if (!isProduction) {
+        responsePayload.devOtp = otp;
+        if (!emailResult.success) {
+          responsePayload.message = `[Dev Mode] Verification code is ${otp} (Email not sent: ${emailResult.error || 'Resend sandbox restricted'})`;
+        }
+      } else if (!emailResult.success) {
+        if (emailResult.isSandboxRestriction) {
+          return next(
+            new AppError(
+              403,
+              'Resend Sandbox restriction: Test emails can only be sent to the verified Resend account owner email. To send to any recipient, verify your domain at resend.com/domains or configure RESEND_FROM_EMAIL.'
+            )
+          );
+        }
+        return next(
+          new AppError(
+            500,
+            `Unable to send verification email: ${emailResult.error || 'Email service error'}. Please try again later.`
+          )
+        );
+      }
+
+      return res.status(200).json(responsePayload);
     } catch (err) {
       next(err);
     }
@@ -149,16 +173,40 @@ authRouter.post(
         JSON.stringify({ otp, userId: user.id })
       );
 
-      await sendOtpEmail({
+      const emailResult = await sendOtpEmail({
         toEmail: email,
         otp,
         purpose: 'reset',
       });
 
-      return res.status(200).json({
+      const responsePayload: { message: string; email: string; devOtp?: string } = {
         message: 'Password reset code sent to your email',
         email,
-      });
+      };
+
+      if (!isProduction) {
+        responsePayload.devOtp = otp;
+        if (!emailResult.success) {
+          responsePayload.message = `[Dev Mode] Password reset code is ${otp} (Email not sent: ${emailResult.error || 'Resend sandbox restricted'})`;
+        }
+      } else if (!emailResult.success) {
+        if (emailResult.isSandboxRestriction) {
+          return next(
+            new AppError(
+              403,
+              'Resend Sandbox restriction: Test emails can only be sent to the verified Resend account owner email. To send to any recipient, verify your domain at resend.com/domains or configure RESEND_FROM_EMAIL.'
+            )
+          );
+        }
+        return next(
+          new AppError(
+            500,
+            `Unable to send reset email: ${emailResult.error || 'Email service error'}. Please try again later.`
+          )
+        );
+      }
+
+      return res.status(200).json(responsePayload);
     } catch (err) {
       next(err);
     }
