@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Ticket, Eye, EyeOff, Mail, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Ticket, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 type AuthMode = 'login' | 'register' | 'register-otp' | 'forgot' | 'forgot-otp';
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Server, Loader2, CheckCircle2, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { Server, Loader2, RefreshCw, X } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 

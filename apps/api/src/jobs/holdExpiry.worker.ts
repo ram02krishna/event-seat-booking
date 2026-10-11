@@ -51,7 +51,7 @@ export function startHoldExpiryWorker(): Worker {
     },
     {
       connection: redisConnection,
-      concurrency: 5,
+      concurrency: 5, // allows this worker to process up to five jobs concurrently
     }
   );
 

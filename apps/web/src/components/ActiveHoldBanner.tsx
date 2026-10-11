@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Clock, CheckCircle2, ArrowRight, ShieldAlert, Trash2 } from 'lucide-react';
+import { Clock, CheckCircle2, ArrowRight, Trash2 } from 'lucide-react';
 import { formatINR } from '@/lib/format';
 import { apiFetch } from '@/lib/api';
 import { useCartStore } from '@/store/cartStore';
@@ -31,7 +30,6 @@ interface ActiveHoldBannerProps {
 }
 
 export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
-  const router = useRouter();
   const { clearHold, restoreHold } = useCartStore();
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isReleasing, setIsReleasing] = useState(false);

@@ -11,7 +11,6 @@ import {
   TrendingUp,
   Calendar,
   Plus,
-  Users,
   Building,
   ArrowRight,
   ExternalLink,
@@ -100,7 +99,6 @@ export default function OrganizerDashboardPage() {
   const {
     data: statsData,
     isLoading: statsLoading,
-    error: statsError,
   } = useQuery<DashboardData>({
     queryKey: ['organizer', 'stats'],
     queryFn: () => apiFetch('/api/organizer/stats'),
@@ -655,7 +653,6 @@ export default function OrganizerDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredEvents.map((ev) => {
-              const startDate = new Date(ev.startsAt);
               const soldPercent = ev.totalSeats > 0 ? (ev.soldSeats / ev.totalSeats) * 100 : 0;
               const heldPercent = ev.totalSeats > 0 ? (ev.heldSeats / ev.totalSeats) * 100 : 0;
               const availPercent = ev.totalSeats > 0 ? (ev.availableSeats / ev.totalSeats) * 100 : 0;

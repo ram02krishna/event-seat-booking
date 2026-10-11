@@ -12,6 +12,9 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default('supersecretdevkey1234567890_min32chars'),
   ORGANIZER_EMAIL: z.string().email().default('organizer@eventseat.com'),
   ORGANIZER_PASSWORD: z.string().default('password123'),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
+  RESEND_OVERRIDE_EMAIL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

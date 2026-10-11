@@ -16,7 +16,6 @@ import {
   ExternalLink,
   Users,
   CheckCircle2,
-  Clock,
   Layers,
 } from 'lucide-react';
 import { formatINR, formatEventDateTime } from '@/lib/format';
@@ -103,7 +102,6 @@ export default function EventAnalyticsPage({
   }
 
   const { event, overview, checkIn, tiers, recentOrders } = data;
-  const startDate = new Date(event.startsAt);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">

@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  QrCode,
   Scan,
   RefreshCw,
   Camera,
