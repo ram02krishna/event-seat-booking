@@ -1,13 +1,5 @@
 import { config } from './config';
 
-/**
- * Checks if the request origin matches allowed origins configured in CLIENT_URL.
- * Supports:
- * - Comma-separated domains in CLIENT_URL (e.g. "http://localhost:3000,https://my-app.vercel.app")
- * - Wildcard "*"
- * - Localhost origins during development
- * - Vercel preview/production domains (*.vercel.app) when a vercel.app domain is in CLIENT_URL
- */
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
 
