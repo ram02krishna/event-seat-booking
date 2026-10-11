@@ -1,6 +1,5 @@
 import { Resend } from 'resend';
 import { logger } from '../logger';
-import { config } from '../config';
 
 export interface SendTicketsEmailParams {
   toEmail: string;

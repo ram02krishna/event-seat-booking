@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { config } from './config';
 import { logger } from './logger';
 import { errorHandler, notFoundHandler } from './errors';
 import { HealthResponse } from '@repo/shared';

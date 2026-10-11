@@ -1,6 +1,5 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { config } from './config';
 import { logger } from './logger';
 import { isOriginAllowed } from './cors';
 
