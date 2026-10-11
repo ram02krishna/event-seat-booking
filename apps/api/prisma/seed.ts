@@ -44,7 +44,7 @@ async function main() {
 
   console.log('Created users: organizer, staff, customer');
 
-  // 3. Create venue with SVG layout config
+  // 3. Create venue 
   const venue = await prisma.venue.create({
     data: {
       name: 'Grand Symphony Hall',
