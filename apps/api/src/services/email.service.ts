@@ -24,6 +24,10 @@ const resend = resendApiKey ? new Resend(resendApiKey) : null;
 export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams) {
   const { toEmail, orderId, eventTitle, startsAt, venueName, tickets } = params;
 
+  const viewTicketsUrl =
+    process.env.CLIENT_TICKETS_URL ||
+    'https://event-seat-booking-psi.vercel.app/my-tickets';
+
   const formattedDate = new Date(startsAt).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -136,7 +140,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
             <!-- CTA Button -->
             <div style="text-align: center; margin: 26px 0 10px 0;">
               <a
-                href="${config.CLIENT_URL}/my-tickets"
+                href="${viewTicketsUrl}"
                 style="display: inline-block; background-color: #4f46e5; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);"
               >
                 View Tickets in Web App &rarr;
