@@ -10,7 +10,7 @@ import { sendTicketConfirmationEmail } from './email.service';
  * Finalizes an order by marking held seats as SOLD and creating Ticket records.
  * Designed as a single function so a payment webhook or direct checkout can invoke it.
  */
-export async function finalizeOrder(orderId: string) {
+export async function finalizeOrder(orderId: string, seatIds?: string[]) {
   const finalized = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -50,6 +50,15 @@ export async function finalizeOrder(orderId: string) {
         eventId: order.eventId,
         heldByUserId: order.userId,
         status: 'HELD',
+        holdExpiresAt: { gt: new Date() },
+        ...(seatIds && seatIds.length > 0
+          ? {
+              OR: [
+                { seatId: { in: seatIds } },
+                { id: { in: seatIds } },
+              ],
+            }
+          : {}),
       },
       include: { seat: true },
     });
@@ -208,5 +217,5 @@ export async function createAndConfirmBooking(params: {
   });
 
   // 4. Finalize order (mark SOLD + create tickets)
-  return finalizeOrder(order.id);
+  return finalizeOrder(order.id, seatIds);
 }

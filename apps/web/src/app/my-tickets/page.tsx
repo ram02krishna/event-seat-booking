@@ -35,7 +35,6 @@ interface OrderItem {
 }
 
 export default function MyTicketsPage() {
-
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiFetch('/api/auth/me'),
@@ -62,7 +61,6 @@ export default function MyTicketsPage() {
       setTimeout(() => setCopiedTokenId(null), 2000);
     }
   }
-
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">

@@ -33,4 +33,3 @@ export function formatEventDateTime(dateInput: string | Date): string {
   if (isNaN(date.getTime())) return '';
   return `${formatEventDate(date)} • ${formatEventTime(date)}`;
 }
-

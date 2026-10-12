@@ -7,6 +7,21 @@ import { SeatData } from '@/components/seat-map/SeatMap';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
+let sharedSocket: Socket | null = null;
+
+function getSharedSocket(): Socket {
+  if (!sharedSocket) {
+    sharedSocket = io(SOCKET_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 500,
+    });
+  }
+  return sharedSocket;
+}
+
 interface SeatPayload {
   seatIds: string[];
   heldByUserId?: string;
@@ -20,19 +35,18 @@ export function useEventSocket(eventId: string) {
   useEffect(() => {
     if (!eventId) return;
 
-    // Connect to Socket.IO server
-    const socket = io(SOCKET_URL, {
-      withCredentials: true,
-      transports: ['websocket', 'polling'],
-    });
-
+    const socket = getSharedSocket();
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      // Join event room and refetch fresh seat data
+    const joinRoom = () => {
       socket.emit('join:event', eventId);
-      queryClient.invalidateQueries({ queryKey: ['events', eventId, 'seats'] });
-    });
+    };
+
+    if (socket.connected) {
+      joinRoom();
+    } else {
+      socket.on('connect', joinRoom);
+    }
 
     // Refetch all seats on reconnect
     socket.io.on('reconnect', () => {
@@ -113,8 +127,8 @@ export function useEventSocket(eventId: string) {
     });
 
     return () => {
+      socket.off('connect', joinRoom);
       socket.emit('leave:event', eventId);
-      socket.disconnect();
     };
   }, [eventId, queryClient]);
 

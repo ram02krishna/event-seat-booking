@@ -14,7 +14,9 @@ const envSchema = z.object({
   ORGANIZER_PASSWORD: z.string().default('password123'),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  RESEND_TICKETS_FROM_EMAIL: z.string().optional(),
   RESEND_OVERRIDE_EMAIL: z.string().optional(),
+  CLIENT_TICKETS_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -6,12 +6,20 @@ import { holdSeats, releaseSeats } from '../services/hold.service';
 import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { broadcastSeatsHeld, broadcastSeatsReleased } from '../socket';
+import { redisConnection } from '../redis';
 
 export const eventsRouter = Router();
 
-// Public: List all published events
+const CACHE_KEY_PUBLISHED_EVENTS = 'cache:events:published';
+
+// Public: List all published events (cached with micro-TTL)
 eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const cached = await redisConnection.get(CACHE_KEY_PUBLISHED_EVENTS).catch(() => null);
+    if (cached) {
+      return res.status(200).json(JSON.parse(cached));
+    }
+
     const events = await prisma.event.findMany({
       where: { status: 'PUBLISHED' },
       include: {
@@ -50,7 +58,12 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
       };
     });
 
-    res.status(200).json({ events: eventsWithStats });
+    const responsePayload = { events: eventsWithStats };
+    await redisConnection
+      .set(CACHE_KEY_PUBLISHED_EVENTS, JSON.stringify(responsePayload), 'EX', 5)
+      .catch(() => null);
+
+    res.status(200).json(responsePayload);
   } catch (err) {
     next(err);
   }
@@ -153,26 +166,27 @@ eventsRouter.get('/:id/seats', async (req: Request, res: Response, next: NextFun
   try {
     const eventId = req.params.id as string;
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: { venue: true },
-    });
+    const [event, eventSeats] = await Promise.all([
+      prisma.event.findUnique({
+        where: { id: eventId },
+        include: { venue: true },
+      }),
+      prisma.eventSeat.findMany({
+        where: { eventId },
+        include: {
+          seat: true,
+        },
+        orderBy: [
+          { seat: { section: 'asc' } },
+          { seat: { row: 'asc' } },
+          { seat: { number: 'asc' } },
+        ],
+      }),
+    ]);
 
     if (!event) {
       return next(new AppError(404, 'Event not found'));
     }
-
-    const eventSeats = await prisma.eventSeat.findMany({
-      where: { eventId },
-      include: {
-        seat: true,
-      },
-      orderBy: [
-        { seat: { section: 'asc' } },
-        { seat: { row: 'asc' } },
-        { seat: { number: 'asc' } },
-      ],
-    });
 
     const now = new Date();
     const currentUserId = req.user?.userId;
@@ -251,6 +265,8 @@ eventsRouter.post(
         });
       }
 
+      redisConnection.del(CACHE_KEY_PUBLISHED_EVENTS).catch(() => null);
+
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -280,11 +296,11 @@ eventsRouter.post(
         seatIds,
       });
 
+      redisConnection.del(CACHE_KEY_PUBLISHED_EVENTS).catch(() => null);
+
       res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 );
-
-

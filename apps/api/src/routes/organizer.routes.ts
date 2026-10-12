@@ -514,5 +514,3 @@ organizerRouter.delete(
     }
   }
 );
-
-

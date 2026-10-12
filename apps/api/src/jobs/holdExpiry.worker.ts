@@ -21,7 +21,7 @@ export function startHoldExpiryWorker(): Worker {
           seatId: { in: seatIds },
           heldByUserId: userId,
           status: 'HELD',
-          holdExpiresAt: { lte: now },
+          holdExpiresAt: { lte: new Date(now.getTime() + 3000) },
         },
         select: { id: true, seatId: true },
       });

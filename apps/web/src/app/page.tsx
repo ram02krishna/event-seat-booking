@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight, Users, RefreshCw } from 'lucide-react';
@@ -20,10 +20,19 @@ interface EventItem {
 }
 
 export default function HomePage() {
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery<{ events: EventItem[] }>({
     queryKey: ['events'],
     queryFn: () => apiFetch('/api/events'),
   });
+
+  const handlePrefetch = (eventId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: ['events', eventId, 'seats'],
+      queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
+      staleTime: 30000,
+    });
+  };
 
   const { data: holdData, refetch: refetchHold } = useQuery<{ hold: ActiveHoldInfo | null }>({
     queryKey: ['active-hold'],
@@ -101,6 +110,8 @@ export default function HomePage() {
             return (
               <div
                 key={event.id}
+                onMouseEnter={() => handlePrefetch(event.id)}
+                onTouchStart={() => handlePrefetch(event.id)}
                 className="group flex flex-col sm:flex-row sm:items-center gap-6 p-6 rounded-2xl bg-slate-800/30 hover:bg-slate-800/50 border border-slate-800 hover:border-slate-700 transition-all"
               >
                 {/* Main Info */}
@@ -149,6 +160,7 @@ export default function HomePage() {
                   </div>
                   <Link
                     href={`/events/${event.id}`}
+                    onMouseEnter={() => handlePrefetch(event.id)}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors whitespace-nowrap"
                   >
                     Select Seats

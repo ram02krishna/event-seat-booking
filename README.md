@@ -211,8 +211,8 @@ JWT_SECRET="supersecretdevkey1234567890_min32chars"
 ### 3. Database Migration & Seed
 Run Prisma migrations and populate the seed data (Grand Symphony Hall, 112 seats across VIP, Premium, and Standard tiers, plus 2 sample events):
 ```bash
-pnpm --filter api prisma:migrate
-pnpm --filter api prisma:seed
+pnpm db:migrate   # or: pnpm db:push
+pnpm seed         # or: pnpm db:seed
 ```
 
 ### 4. Run Development Servers

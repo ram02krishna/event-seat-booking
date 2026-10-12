@@ -11,6 +11,10 @@
     "build:api": "pnpm --filter @repo/shared build && pnpm --filter api build",
     "lint": "pnpm --recursive run lint",
     "typecheck": "pnpm --filter @repo/shared build && pnpm --filter api prisma:generate && pnpm --recursive run typecheck",
+    "db:push": "pnpm --filter api exec prisma db push",
+    "db:migrate": "pnpm --filter api prisma:migrate",
+    "db:seed": "pnpm --filter api prisma:seed",
+    "seed": "pnpm --filter api prisma:seed",
     "db:studio": "pnpm --filter api prisma:studio",
     "prisma:studio": "pnpm --filter api prisma:studio"
   },

@@ -45,6 +45,10 @@ export function BackendBanner() {
         setServerState('online');
         // Automatically refetch active queries once backend is awake
         queryClient.invalidateQueries();
+        // Auto-dismiss after confirming online so the UI remains clean and focused
+        setTimeout(() => {
+          setIsDismissed(true);
+        }, 3000);
         return true;
       } else {
         setServerState('waking');

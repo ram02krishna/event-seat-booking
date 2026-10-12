@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { logger } from '../logger';
+import { config } from '../config';
 
 export interface SendTicketsEmailParams {
   toEmail: string;
@@ -17,14 +18,14 @@ export interface SendTicketsEmailParams {
   }>;
 }
 
-const resendApiKey = process.env.RESEND_API_KEY;
+const resendApiKey = config.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams) {
   const { toEmail, orderId, eventTitle, startsAt, venueName, tickets } = params;
 
   const viewTicketsUrl =
-    process.env.CLIENT_TICKETS_URL ||
+    config.CLIENT_TICKETS_URL ||
     'https://event-seat-booking-psi.vercel.app/my-tickets';
 
   const formattedDate = new Date(startsAt).toLocaleDateString('en-US', {
@@ -162,12 +163,12 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       return;
     }
 
-    const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
+    const overrideEmail = config.RESEND_OVERRIDE_EMAIL;
     const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
     const fromEmail =
-      process.env.RESEND_TICKETS_FROM_EMAIL ||
-      process.env.RESEND_FROM_EMAIL ||
-      'Tickets <tickets@ram02krishna.me>';
+      config.RESEND_TICKETS_FROM_EMAIL ||
+      config.RESEND_FROM_EMAIL ||
+      'Event Seat Booking <security@ram02krishna.me>';
 
     // Send email with inline QR code URL only (no separate PNG attachments so Gmail won't show attachment cards)
     const result = await resend.emails.send({
@@ -266,9 +267,9 @@ export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmai
   }
 
   try {
-    const overrideEmail = process.env.RESEND_OVERRIDE_EMAIL;
+    const overrideEmail = config.RESEND_OVERRIDE_EMAIL;
     const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Security <security@ram02krishna.me>';
+    const fromEmail = config.RESEND_FROM_EMAIL || 'Event Seat Booking <security@ram02krishna.me>';
 
     const result = await resend.emails.send({
       from: fromEmail,
@@ -302,6 +303,3 @@ export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmai
     return { success: false, error: err?.message || 'Failed to send verification email' };
   }
 }
-
-
-

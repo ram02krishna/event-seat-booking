@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { logger } from './logger';
 import { errorHandler, notFoundHandler } from './errors';
@@ -28,6 +29,7 @@ app.use(
   })
 );
 
+app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
 app.use(attachUser);

@@ -48,7 +48,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/event_seat_booking?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: supersecretdevkey1234567890_min32chars
-      CLIENT_URL: http://localhost:3000
+      CLIENT_URL: http://localhost:3000,http://localhost:3001
     ports:
       - "4000:4000"
 
@@ -66,7 +66,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:4000
       NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
 volumes:
   postgres_data:

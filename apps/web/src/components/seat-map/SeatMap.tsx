@@ -139,6 +139,12 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
       .sort((a, b) => a.y - b.y);
   }, [seats]);
 
+  const selectedSeatIdSet = useMemo(
+    () => new Set(selectedSeats.map((s) => s.id)),
+    [selectedSeats]
+  );
+  const heldSeatIdSet = useMemo(() => new Set(heldSeatIds), [heldSeatIds]);
+
   function handleSeatClick(seat: SeatData) {
     if (seat.status === 'SOLD') return;
     if (seat.status === 'HELD' && !seat.isHeldByMe) return;
@@ -548,9 +554,9 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
 
             {/* 6. Realistic Stadium Armchairs */}
             {seats.map((seat) => {
-              const isSelected = selectedSeats.some((s) => s.id === seat.id);
+              const isSelected = selectedSeatIdSet.has(seat.id);
               const isHeld = seat.status === 'HELD';
-              const isHeldByMe = isSelected || seat.isHeldByMe || heldSeatIds.includes(seat.id);
+              const isHeldByMe = isSelected || seat.isHeldByMe || heldSeatIdSet.has(seat.id);
               const isSold = seat.status === 'SOLD';
               const isHovered = hoveredSeat?.id === seat.id;
 

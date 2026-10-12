@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { ConfirmOrderSchema } from '@repo/shared';
 import { createAndConfirmBooking } from '../services/order.service';
+import { redisConnection } from '../redis';
 
 export const ordersRouter = Router();
 
@@ -24,6 +25,8 @@ ordersRouter.post(
         userId,
         idempotencyKey,
       });
+
+      redisConnection.del('cache:events:published').catch(() => null);
 
       res.status(200).json(result);
     } catch (err) {

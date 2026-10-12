@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@/store/cartStore';
 import { apiFetch } from '@/lib/api';
 import { Clock, Trash2, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
@@ -16,6 +17,7 @@ interface CartPanelProps {
 
 export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPanelProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { selectedSeats, heldSeatIds, holdExpiresAt, toggleSeat, clearSelection, setHeldSeats, clearHold } =
     useCartStore();
 
@@ -71,6 +73,30 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
         }),
       });
 
+      // Optimistically update seats cache instantly
+      queryClient.setQueryData(
+        ['events', eventId, 'seats'],
+        (old: any) => {
+          if (!old?.seats) return old;
+          const myIdSet = new Set(selectedSeats.map((s) => s.id));
+          const myRawSeatIdSet = new Set(selectedSeats.map((s) => s.seatId));
+          return {
+            ...old,
+            seats: old.seats.map((seat: any) => {
+              if (myIdSet.has(seat.id) || myRawSeatIdSet.has(seat.seatId)) {
+                return {
+                  ...seat,
+                  status: 'HELD',
+                  isHeldByMe: true,
+                  holdExpiresAt: res.holdExpiresAt,
+                };
+              }
+              return seat;
+            }),
+          };
+        }
+      );
+
       setHeldSeats(
         selectedSeats.map((s) => s.id),
         res.holdExpiresAt,
@@ -95,6 +121,30 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
           seatIds: selectedSeats.map((s) => s.seatId),
         }),
       });
+
+      // Optimistically update seats cache instantly back to available
+      queryClient.setQueryData(
+        ['events', eventId, 'seats'],
+        (old: any) => {
+          if (!old?.seats) return old;
+          const myIdSet = new Set(selectedSeats.map((s) => s.id));
+          const myRawSeatIdSet = new Set(selectedSeats.map((s) => s.seatId));
+          return {
+            ...old,
+            seats: old.seats.map((seat: any) => {
+              if (myIdSet.has(seat.id) || myRawSeatIdSet.has(seat.seatId)) {
+                return {
+                  ...seat,
+                  status: 'AVAILABLE',
+                  isHeldByMe: false,
+                  holdExpiresAt: null,
+                };
+              }
+              return seat;
+            }),
+          };
+        }
+      );
 
       clearHold();
       onReleaseSuccess?.();
