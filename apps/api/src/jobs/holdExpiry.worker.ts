@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { broadcastSeatsReleased } from '../socket';
 import { HoldExpiryData } from './holdExpiry.queue';
 
+// Start the worker
 export function startHoldExpiryWorker(): Worker {
   const worker = new Worker<HoldExpiryData>(
     'hold-expiry-queue',
