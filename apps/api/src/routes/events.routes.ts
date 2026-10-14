@@ -24,7 +24,7 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
       where: { status: 'PUBLISHED' },
       include: {
         venue: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, layout: true },
         },
         eventSeats: {
           select: { status: true, holdExpiresAt: true, price: true },

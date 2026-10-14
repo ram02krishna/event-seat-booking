@@ -226,12 +226,27 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Running with Docker
 
-To run the complete stack (Postgres, Redis, Express API, Next.js Web) in containers:
+### 1. Database & Cache Infrastructure Only (Recommended for Local Dev)
+When running your Next.js and Express apps locally with hot-reload via `pnpm dev`:
 ```bash
-docker compose up --build
+docker compose up -d    # or: pnpm db:up
 ```
-- Web: [http://localhost:3000](http://localhost:3000)
+This spins up only `event_booking_postgres` (port 5432) and `event_booking_redis` (port 6379), completely avoiding any port 4000/3000 collisions with your local dev server.
+
+### 2. Full Containerized Stack (Postgres, Redis, Express API, Next.js Web)
+To run the entire platform inside Docker containers:
+```bash
+docker compose --profile app up -d --build   # or: pnpm docker:full
+```
+- Web: [http://localhost:3001](http://localhost:3001)
 - API: [http://localhost:4000](http://localhost:4000)
+
+*(Note: If port 4000 is occupied by a local process, you can set `DOCKER_API_PORT=4001` in your `.env`)*
+
+To stop all containers:
+```bash
+docker compose down   # or: pnpm db:down
+```
 
 ---
 

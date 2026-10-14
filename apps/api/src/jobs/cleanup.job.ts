@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { logger } from '../logger';
 import { broadcastSeatsReleased } from '../socket';
+import { redisConnection } from '../redis';
 
 export async function cleanupExpiredHolds(): Promise<number> {
   const now = new Date();
@@ -40,6 +41,8 @@ export async function cleanupExpiredHolds(): Promise<number> {
   for (const [eventId, seatIds] of eventMap.entries()) {
     broadcastSeatsReleased(eventId, { seatIds });
   }
+
+  redisConnection.del('cache:events:published').catch(() => null);
 
   logger.info(`Cleanup job tidy-up: released ${expiredSeats.length} stray expired holds`);
   return expiredSeats.length;

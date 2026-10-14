@@ -98,7 +98,7 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
   if (remainingSeconds === 0) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-950/60 via-slate-900/90 to-purple-950/50 p-5 shadow-2xl backdrop-blur-xl">
+    <div className="relative overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-purple-50/90 shadow-xl backdrop-blur-xl dark:border-indigo-500/40 dark:from-indigo-950/60 dark:via-slate-900/90 dark:to-purple-950/50 p-5">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Left: Info */}
         <div className="space-y-1.5 min-w-0">
@@ -107,7 +107,7 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
               Active Seat Reservation
             </span>
             {remainingSeconds !== null && (
@@ -124,17 +124,17 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
             )}
           </div>
 
-          <h3 className="text-base font-bold text-white truncate">{hold.eventTitle}</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{hold.eventTitle}</h3>
 
-          <p className="text-xs text-slate-300 flex flex-wrap items-center gap-2">
+          <p className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-2">
             <span>
               {hold.seats.length} seat{hold.seats.length > 1 ? 's' : ''} locked:
             </span>
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-slate-900 dark:text-white">
               {hold.seats.map((s) => `Row ${s.row}-${s.number}`).join(', ')}
             </span>
             <span>• Total:</span>
-            <span className="font-mono font-semibold text-emerald-400">
+            <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
               {formatINR(hold.totalPrice)}
             </span>
           </p>
@@ -153,7 +153,7 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
 
           <Link
             href={`/events/${hold.eventId}`}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-slate-700/80 text-xs font-medium transition-colors"
           >
             <span>View Seat Map</span>
           </Link>
@@ -161,7 +161,7 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
           <button
             onClick={handleRelease}
             disabled={isReleasing}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors disabled:opacity-50"
             title="Release held seats"
           >
             <Trash2 className="w-3.5 h-3.5" />

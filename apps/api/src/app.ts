@@ -13,6 +13,8 @@ import { ordersRouter } from './routes/orders.routes';
 import { ticketsRouter } from './routes/tickets.routes';
 
 import { isOriginAllowed } from './cors';
+import { prisma } from './db';
+import { redisConnection } from './redis';
 
 export const app = express();
 
@@ -44,14 +46,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/health', (_req, res) => {
-  const data: HealthResponse = {
-    status: 'ok',
+// Health check (supports ?deep=true for DB and Redis status)
+app.get('/health', async (req, res) => {
+  const isDeep = req.query.deep === 'true';
+  let dbStatus = 'ok';
+  let redisStatus = 'ok';
+
+  if (isDeep) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch {
+      dbStatus = 'error';
+    }
+    try {
+      await redisConnection.ping();
+    } catch {
+      redisStatus = 'error';
+    }
+  }
+
+  const isHealthy = dbStatus === 'ok' && redisStatus === 'ok';
+  const data: HealthResponse & { db?: string; redis?: string } = {
+    status: isHealthy ? 'ok' : 'error',
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
+    ...(isDeep ? { db: dbStatus, redis: redisStatus } : {}),
   };
-  res.status(200).json(data);
+  res.status(isHealthy ? 200 : 503).json(data);
 });
 
 // Routes

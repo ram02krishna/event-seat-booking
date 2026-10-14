@@ -6,11 +6,24 @@ import { CreateVenueSchema, CreateEventSchema, GenerateSeatsSchema, CreateStaffS
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../errors';
 import { Role, SeatStatus } from '@prisma/client';
+import { getVenueTemplate, VENUE_TEMPLATES } from '../services/venueTemplates.service';
+import { redisConnection } from '../redis';
 
 export const organizerRouter = Router();
 
 // Require organizer role for all routes in this router
 organizerRouter.use(requireAuth, requireRole([Role.ORGANIZER]));
+
+// List predefined venue templates (Dolby Cinema, Conference Hall, Auditorium, Arena, etc.)
+organizerRouter.get('/venue-templates', async (_req: Request, res: Response) => {
+  const templates = Object.entries(VENUE_TEMPLATES).map(([type, config]) => ({
+    type,
+    defaultName: config.defaultName,
+    layout: config.layout,
+    recommendedPricing: config.recommendedPricing,
+  }));
+  res.status(200).json({ templates });
+});
 
 // Create venue
 organizerRouter.post(
@@ -18,11 +31,24 @@ organizerRouter.post(
   validateBody(CreateVenueSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { name, layout } = req.body;
+      const { name, layout, venueType } = req.body;
+      const template = getVenueTemplate(venueType);
+      const venueLayout = layout || template.layout;
+
       const venue = await prisma.venue.create({
-        data: { name, layout },
+        data: { name, layout: venueLayout as any },
       });
-      res.status(201).json({ venue });
+
+      // Auto-generate seats for this venue using the template
+      const seatDefs = template.generateSeats(venue.id);
+      await prisma.seat.createMany({ data: seatDefs, skipDuplicates: true });
+
+      const createdVenue = await prisma.venue.findUnique({
+        where: { id: venue.id },
+        include: { seats: true },
+      });
+
+      res.status(201).json({ venue: createdVenue });
     } catch (err) {
       next(err);
     }
@@ -107,7 +133,7 @@ organizerRouter.post(
   validateBody(CreateEventSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { venueId, venueName, title, description, startsAt, pricing } = req.body;
+      const { venueId, venueName, venueType, title, description, startsAt, pricing } = req.body;
 
       let venue = null;
       if (venueId) {
@@ -116,6 +142,8 @@ organizerRouter.post(
           include: { seats: true },
         });
       }
+
+      const template = getVenueTemplate(venueType);
 
       if (!venue && venueName && venueName.trim()) {
         const vName = venueName.trim();
@@ -130,51 +158,12 @@ organizerRouter.post(
           venue = await prisma.venue.create({
             data: {
               name: vName,
-              layout: {
-                width: 1000,
-                height: 700,
-                stage: { x: 250, y: 30, width: 500, height: 50, label: 'MAIN STAGE' },
-                sections: [
-                  { id: 'VIP', name: 'VIP Front Row', tier: 'VIP', color: '#8b5cf6', defaultPriceCents: 250000 },
-                  { id: 'PREMIUM', name: 'Premium Middle', tier: 'PREMIUM', color: '#3b82f6', defaultPriceCents: 150000 },
-                  { id: 'STANDARD', name: 'Standard General', tier: 'STANDARD', color: '#10b981', defaultPriceCents: 75000 },
-                ],
-              },
+              layout: template.layout as any,
             },
             include: { seats: true },
           });
 
-          const seatDefs: Array<{
-            venueId: string;
-            section: string;
-            row: string;
-            number: number;
-            x: number;
-            y: number;
-            tier: string;
-          }> = [];
-
-          ['A', 'B'].forEach((row, rIdx) => {
-            const y = 130 + rIdx * 50;
-            for (let num = 1; num <= 10; num++) {
-              seatDefs.push({ venueId: venue!.id, section: 'VIP', row, number: num, x: 275 + (num - 1) * 50, y, tier: 'VIP' });
-            }
-          });
-
-          ['C', 'D', 'E'].forEach((row, rIdx) => {
-            const y = 260 + rIdx * 50;
-            for (let num = 1; num <= 12; num++) {
-              seatDefs.push({ venueId: venue!.id, section: 'PREMIUM', row, number: num, x: 225 + (num - 1) * 50, y, tier: 'PREMIUM' });
-            }
-          });
-
-          ['F', 'G', 'H', 'I'].forEach((row, rIdx) => {
-            const y = 440 + rIdx * 50;
-            for (let num = 1; num <= 14; num++) {
-              seatDefs.push({ venueId: venue!.id, section: 'STANDARD', row, number: num, x: 175 + (num - 1) * 50, y, tier: 'STANDARD' });
-            }
-          });
-
+          const seatDefs = template.generateSeats(venue.id);
           await prisma.seat.createMany({ data: seatDefs, skipDuplicates: true });
           venue = await prisma.venue.findUnique({ where: { id: venue.id }, include: { seats: true } });
         }
@@ -193,8 +182,14 @@ organizerRouter.post(
       }
 
       if (venue.seats.length === 0) {
+        const seatDefs = template.generateSeats(venue.id);
+        await prisma.seat.createMany({ data: seatDefs, skipDuplicates: true });
+        venue = await prisma.venue.findUnique({ where: { id: venue.id }, include: { seats: true } });
+      }
+
+      if (!venue || venue.seats.length === 0) {
         return next(
-          new AppError(400, 'Venue has no seats. Generate seats first before creating an event.')
+          new AppError(400, 'Venue has no seats. Could not initialize seats.')
         );
       }
 
@@ -209,22 +204,25 @@ organizerRouter.post(
 
       // Populate EventSeat records for all venue seats
       const defaultTierPricing: Record<string, number> = {
-        VIP: 250000,
-        PREMIUM: 150000,
-        STANDARD: 75000,
+        VIP: template.recommendedPricing.VIP,
+        PREMIUM: template.recommendedPricing.PREMIUM,
+        STANDARD: template.recommendedPricing.STANDARD,
         ...pricing,
       };
 
       const eventSeatsData = venue.seats.map((seat) => ({
         eventId: event.id,
         seatId: seat.id,
-        price: defaultTierPricing[seat.tier] || 3000,
+        price: defaultTierPricing[seat.tier] || template.recommendedPricing.STANDARD,
         status: SeatStatus.AVAILABLE,
       }));
 
       await prisma.eventSeat.createMany({
         data: eventSeatsData,
       });
+
+      // Invalidate public events cache in Redis so new event appears instantly
+      await redisConnection.del('cache:events:published').catch(() => null);
 
       res.status(201).json({
         event,
@@ -253,7 +251,7 @@ organizerRouter.get('/stats', async (_req: Request, res: Response, next: NextFun
 
     const events = await prisma.event.findMany({
       include: {
-        venue: { select: { name: true } },
+        venue: { select: { name: true, layout: true } },
         eventSeats: {
           select: { status: true, price: true },
         },
@@ -276,6 +274,7 @@ organizerRouter.get('/stats', async (_req: Request, res: Response, next: NextFun
         title: ev.title,
         startsAt: ev.startsAt,
         venueName: ev.venue.name,
+        venueType: (ev.venue.layout as any)?.type || 'THEATER_DOLBY',
         totalSeats: total,
         soldSeats: sold,
         heldSeats: held,
@@ -411,6 +410,7 @@ organizerRouter.get('/events/:id/stats', async (req: Request, res: Response, nex
         description: event.description,
         startsAt: event.startsAt,
         venueName: event.venue.name,
+        venueType: (event.venue.layout as any)?.type || 'THEATER_DOLBY',
       },
       overview: {
         totalSeats,

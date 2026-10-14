@@ -9,6 +9,17 @@ import { ArrowLeft, CheckCircle2, Ticket, Mail, ShieldCheck } from 'lucide-react
 import Link from 'next/link';
 import { formatINR } from '@/lib/format';
 
+function safeUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,7 +94,7 @@ function CheckoutContent() {
         body: JSON.stringify({
           eventId,
           seatIds: selectedSeats.map((s) => s.seatId),
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: safeUUID(),
         }),
       });
       clearHold();

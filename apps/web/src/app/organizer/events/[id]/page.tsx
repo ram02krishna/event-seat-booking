@@ -19,6 +19,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { formatINR, formatEventDateTime } from '@/lib/format';
+import { VenueBadge } from '@/components/venue-badge';
 
 interface TierStat {
   tier: string;
@@ -38,6 +39,7 @@ interface EventStatsResponse {
     description?: string;
     startsAt: string;
     venueName: string;
+    venueType?: string;
   };
   overview: {
     totalSeats: number;
@@ -121,6 +123,7 @@ export default function EventAnalyticsPage({
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 {event.title}
               </h1>
+              {event.venueType && <VenueBadge type={event.venueType} />}
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Live Event
               </span>
@@ -226,23 +229,23 @@ export default function EventAnalyticsPage({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-5 backdrop-blur-sm"
+          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm"
         >
-          <div className="flex items-center justify-between text-emerald-400 text-xs uppercase tracking-wider font-medium">
+          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
             <span>Gate Check-Ins</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="mt-3 text-2xl font-bold text-white tracking-tight">
             {checkIn.checkedInCount}
-            <span className="text-sm font-normal text-slate-400 ml-1.5">/ {checkIn.totalTickets} entered</span>
+            <span className="text-sm font-normal text-slate-500 ml-1.5">/ {checkIn.totalTickets} entered</span>
           </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div className="w-full bg-slate-800/80 h-1.5 rounded-full mt-2 overflow-hidden">
             <div
-              className="bg-emerald-400 h-full rounded-full transition-all duration-700"
+              className="bg-emerald-500 h-full rounded-full transition-all duration-700"
               style={{ width: `${checkIn.checkInRate}%` }}
             />
           </div>
-          <div className="text-[11px] text-emerald-400/90 mt-1 font-medium">
+          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
             {checkIn.checkInRate}% checked in at gate
           </div>
         </motion.div>

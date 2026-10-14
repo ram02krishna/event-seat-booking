@@ -48,6 +48,8 @@ export function startHoldExpiryWorker(): Worker {
       // Broadcast real-time release to all clients viewing the seat map
       broadcastSeatsReleased(eventId, { seatIds: releasedSeatIds });
 
+      redisConnection.del('cache:events:published').catch(() => null);
+
       logger.info(`Released ${releasedSeatIds.length} expired seats for event ${eventId}`);
     },
     {

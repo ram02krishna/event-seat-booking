@@ -10,6 +10,7 @@ import { useEventSocket } from '@/hooks/useEventSocket';
 import { Calendar, MapPin, RefreshCw, ArrowLeft, Users } from 'lucide-react';
 import Link from 'next/link';
 import { formatEventDateTime } from '@/lib/format';
+import { VenueBadge } from '@/components/venue-badge';
 
 interface EventPageProps {
   params: Promise<{ id: string }>;
@@ -126,9 +127,14 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
               <ArrowLeft className="w-3.5 h-3.5" />
               All Events
             </Link>
-            <h1 className="text-lg font-bold text-white">
-              {event?.title || 'Venue Seat Map'}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-lg font-bold text-white">
+                {event?.title || 'Venue Seat Map'}
+              </h1>
+              {venue?.layout?.type && (
+                <VenueBadge type={venue.layout.type} size="sm" />
+              )}
+            </div>
             <div className="flex flex-wrap gap-4 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" />

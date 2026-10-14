@@ -14,6 +14,8 @@ import {
   Clock,
   Copy,
   Check,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { formatINR, formatEventDateTime } from '@/lib/format';
 
@@ -53,6 +55,13 @@ export default function MyTicketsPage() {
   const orders = data?.orders || [];
   const isPageLoading = authLoading || (!!user && isLoading);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [enlargedTicket, setEnlargedTicket] = useState<{
+    qrDataUrl: string;
+    qrToken: string;
+    seatLabel: string;
+    eventTitle: string;
+    tier: string;
+  } | null>(null);
 
   function handleCopy(token: string, id: string) {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -179,19 +188,32 @@ export default function MyTicketsPage() {
                         className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3"
                       >
                         <div className="flex items-center gap-4">
-                          {/* QR Thumbnail */}
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(t.qrToken, t.id)}
-                            className="shrink-0 bg-white p-1.5 rounded-lg shadow-md cursor-pointer hover:ring-2 hover:ring-indigo-500/50 transition-all text-left"
-                            title="Click to copy QR token UUID"
-                          >
-                            <img
-                              src={t.qrDataUrl}
-                              alt="QR Code"
-                              className="w-16 h-16 object-contain"
-                            />
-                          </button>
+                          {/* QR Thumbnail with click-to-expand */}
+                          <div className="relative group/qr shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEnlargedTicket({
+                                  qrDataUrl: t.qrDataUrl,
+                                  qrToken: t.qrToken,
+                                  seatLabel: `Row ${t.seat.row}, Seat ${t.seat.number}`,
+                                  eventTitle: order.event.title,
+                                  tier: t.seat.tier,
+                                })
+                              }
+                              className="bg-white p-1.5 rounded-lg shadow-md cursor-pointer hover:ring-2 hover:ring-indigo-500/50 transition-all text-left block"
+                              title="Click to enlarge QR code for scanning"
+                            >
+                              <img
+                                src={t.qrDataUrl}
+                                alt="QR Code"
+                                className="w-16 h-16 object-contain"
+                              />
+                            </button>
+                            <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white p-0.5 rounded-full shadow pointer-events-none opacity-0 group-hover/qr:opacity-100 transition-opacity">
+                              <Maximize2 className="w-2.5 h-2.5" />
+                            </span>
+                          </div>
 
                           {/* Details */}
                           <div className="flex-1 min-w-0 space-y-1.5">
@@ -252,6 +274,72 @@ export default function MyTicketsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Enlarged QR Modal */}
+      {enlargedTicket && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setEnlargedTicket(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 space-y-4 shadow-2xl relative text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setEnlargedTicket(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                {enlargedTicket.tier} Ticket Pass
+              </span>
+              <h3 className="font-bold text-base text-white">{enlargedTicket.eventTitle}</h3>
+              <p className="text-sm font-semibold text-indigo-400">{enlargedTicket.seatLabel}</p>
+            </div>
+
+            {/* High-res White QR Box */}
+            <div className="bg-white p-4 rounded-xl shadow-inner inline-block mx-auto border-2 border-slate-200">
+              <img
+                src={enlargedTicket.qrDataUrl}
+                alt="Ticket QR Code"
+                className="w-56 h-56 object-contain mx-auto"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">
+                Present this code to staff at the venue turnstile or scanner gate.
+              </p>
+              <div className="pt-2 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopy(enlargedTicket.qrToken, 'modal')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                >
+                  {copiedTokenId === 'modal' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-300" />
+                      <span>UUID Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy UUID Token</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </main>

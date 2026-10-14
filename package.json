@@ -16,7 +16,11 @@
     "db:seed": "pnpm --filter api prisma:seed",
     "seed": "pnpm --filter api prisma:seed",
     "db:studio": "pnpm --filter api prisma:studio",
-    "prisma:studio": "pnpm --filter api prisma:studio"
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:full": "docker compose --profile app up -d"
   },
   "devDependencies": {
     "prettier": "^3.5.0",

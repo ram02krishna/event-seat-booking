@@ -5,6 +5,7 @@ import { AppError } from '../errors';
 import { logger } from '../logger';
 import { broadcastSeatsSold } from '../socket';
 import { sendTicketConfirmationEmail } from './email.service';
+import { redisConnection } from '../redis';
 
 /**
  * Finalizes an order by marking held seats as SOLD and creating Ticket records.
@@ -142,6 +143,8 @@ export async function finalizeOrder(orderId: string, seatIds?: string[]) {
       seatIds: finalized.tickets.map((t) => t.eventSeat.seatId),
     });
 
+    redisConnection.del('cache:events:published').catch(() => null);
+
     sendTicketConfirmationEmail({
       toEmail: finalized.user.email,
       orderId: finalized.order.id,
@@ -172,6 +175,11 @@ export async function createAndConfirmBooking(params: {
   idempotencyKey?: string;
 }) {
   const { eventId, seatIds, userId, idempotencyKey } = params;
+  const uniqueSeatIds = [...new Set(seatIds)];
+
+  if (uniqueSeatIds.length === 0) {
+    throw new AppError(400, 'Please select at least one seat');
+  }
 
   // 1. Idempotency Key check: if an order already exists with this key, return it
   if (idempotencyKey) {
@@ -181,7 +189,7 @@ export async function createAndConfirmBooking(params: {
 
     if (existingOrder) {
       logger.info(`Idempotent order replay for key ${idempotencyKey}`);
-      return finalizeOrder(existingOrder.id);
+      return finalizeOrder(existingOrder.id, uniqueSeatIds);
     }
   }
 
@@ -193,13 +201,13 @@ export async function createAndConfirmBooking(params: {
       status: 'HELD',
       holdExpiresAt: { gt: new Date() },
       OR: [
-        { seatId: { in: seatIds } },
-        { id: { in: seatIds } },
+        { seatId: { in: uniqueSeatIds } },
+        { id: { in: uniqueSeatIds } },
       ],
     },
   });
 
-  if (heldSeats.length !== seatIds.length) {
+  if (heldSeats.length !== uniqueSeatIds.length) {
     throw new AppError(400, 'All seats must be actively held by you before confirming booking');
   }
 

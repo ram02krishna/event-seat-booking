@@ -39,23 +39,71 @@ export function attachUser(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+import { prisma } from '../db';
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return next(new AppError(401, 'Authentication required'));
   }
-  next();
+
+  prisma.user
+    .findUnique({
+      where: { id: req.user.userId },
+      select: { id: true, role: true },
+    })
+    .then((userExists) => {
+      if (!userExists) {
+        const isProduction = config.NODE_ENV === 'production';
+        res.clearCookie('token', {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        });
+        req.user = undefined;
+        return next(
+          new AppError(401, 'Session invalid or account no longer exists. Please sign in again.')
+        );
+      }
+
+      req.user!.role = userExists.role;
+      next();
+    })
+    .catch((err) => next(err));
 }
 
 export function requireRole(allowedRoles: Role[]) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError(401, 'Authentication required'));
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(new AppError(403, 'Permission denied'));
-    }
+    prisma.user
+      .findUnique({
+        where: { id: req.user.userId },
+        select: { id: true, role: true },
+      })
+      .then((userExists) => {
+        if (!userExists) {
+          const isProduction = config.NODE_ENV === 'production';
+          res.clearCookie('token', {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+          });
+          req.user = undefined;
+          return next(
+            new AppError(401, 'Session invalid or account no longer exists. Please sign in again.')
+          );
+        }
 
-    next();
+        req.user!.role = userExists.role;
+
+        if (!allowedRoles.includes(userExists.role)) {
+          return next(new AppError(403, 'Permission denied'));
+        }
+
+        next();
+      })
+      .catch((err) => next(err));
   };
 }

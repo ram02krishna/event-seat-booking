@@ -23,6 +23,7 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAuthRequired, setIsAuthRequired] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
   const isHeld = heldSeatIds.length > 0 && !!holdExpiresAt;
@@ -102,9 +103,24 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
         res.holdExpiresAt,
         eventId
       );
+      setIsAuthRequired(false);
       onHoldSuccess?.();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to hold seats');
+      const msg = err.message || '';
+      const isAuth =
+        err.status === 401 ||
+        msg.toLowerCase().includes('sign in') ||
+        msg.toLowerCase().includes('authentication') ||
+        msg.toLowerCase().includes('session') ||
+        msg.toLowerCase().includes('unauthorized');
+
+      if (isAuth) {
+        setErrorMessage('Sign in required to hold seats. Your selection is saved!');
+        setIsAuthRequired(true);
+      } else {
+        setErrorMessage(msg || 'Failed to hold seats');
+        setIsAuthRequired(false);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -250,9 +266,21 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
           </div>
 
           {errorMessage && (
-            <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{errorMessage}</span>
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300 text-xs space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+              {isAuthRequired && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/login?redirect=/events/${eventId}`)}
+                  className="w-full py-1.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>Sign In to Continue</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )}
 

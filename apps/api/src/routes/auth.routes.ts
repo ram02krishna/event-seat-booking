@@ -269,7 +269,8 @@ authRouter.post(
   validateBody(LoginSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { email, password } = req.body;
+      const email = req.body.email.trim().toLowerCase();
+      const { password } = req.body;
 
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) {

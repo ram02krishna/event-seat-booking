@@ -10,9 +10,11 @@ export const OrderStatusSchema = z.enum(['PENDING', 'CONFIRMED', 'EXPIRED', 'CAN
 export type OrderStatus = z.infer<typeof OrderStatusSchema>;
 
 export interface HealthResponse {
-  status: 'ok';
+  status: 'ok' | 'error' | 'degraded';
   uptime: number;
   timestamp: string;
+  db?: string;
+  redis?: string;
 }
 
 // Auth schemas
@@ -58,10 +60,20 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export const VenueTypeEnum = z.enum([
+  'THEATER_DOLBY',
+  'CONFERENCE_HALL',
+  'AUDITORIUM',
+  'ARENA',
+  'OTHERS',
+]);
+export type VenueType = z.infer<typeof VenueTypeEnum>;
+
 // Organizer / Venue / Event schemas
 export const CreateVenueSchema = z.object({
   name: z.string().min(2, 'Venue name is required'),
-  layout: z.record(z.any()),
+  layout: z.record(z.any()).optional(),
+  venueType: VenueTypeEnum.optional(),
 });
 export type CreateVenueInput = z.infer<typeof CreateVenueSchema>;
 
@@ -85,6 +97,7 @@ export type GenerateSeatsInput = z.infer<typeof GenerateSeatsSchema>;
 export const CreateEventSchema = z.object({
   venueId: z.string().optional(),
   venueName: z.string().optional(),
+  venueType: VenueTypeEnum.optional().default('THEATER_DOLBY'),
   title: z.string().min(2, 'Event title is required'),
   description: z.string().optional(),
   startsAt: z.string().datetime('Must be a valid ISO datetime string'),

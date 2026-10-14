@@ -33,6 +33,15 @@ export async function holdSeats(params: {
     throw new AppError(404, 'Event not found or not open for booking');
   }
 
+  // Check user exists
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new AppError(401, 'User account not found. Please sign in again.');
+  }
+
   // Run hold query inside transaction for all-or-nothing atomicity
   const { heldSeats, releasedSeatIds } = await prisma.$transaction(async (tx) => {
     // One active hold per user per event check

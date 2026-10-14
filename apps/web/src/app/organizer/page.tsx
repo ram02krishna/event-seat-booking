@@ -29,14 +29,124 @@ import {
   ScanLine,
   Copy,
   Check,
+  Film,
+  Building2,
+  Music2,
+  Radio,
+  Sparkles,
+  Layers,
+  Tv,
+  Volume2,
 } from 'lucide-react';
 import { formatINR, formatEventDateTime } from '@/lib/format';
+import { VenueBadge } from '@/components/venue-badge';
+
+interface SeatMapPreset {
+  id: 'THEATER_DOLBY' | 'CONFERENCE_HALL' | 'AUDITORIUM' | 'ARENA' | 'OTHERS';
+  name: string;
+  badge: string;
+  icon: any;
+  defaultVenueName: string;
+  description: string;
+  defaultVipPrice: string;
+  defaultPremiumPrice: string;
+  defaultStandardPrice: string;
+  highlights: string[];
+  gradient: string;
+  border: string;
+  textAccent: string;
+  tagColor: string;
+}
+
+const SEATMAP_PRESETS: SeatMapPreset[] = [
+  {
+    id: 'THEATER_DOLBY',
+    name: 'Theater with Dolby Atmos',
+    badge: 'Dolby Atmos 7.1.4 • Curved Laser Screen',
+    icon: Film,
+    defaultVenueName: 'Dolby Atmos CineDome',
+    description: 'Curved panoramic 4K laser screen, 64-channel spatial surround, VIP recliners & central cinema aisle.',
+    defaultVipPrice: '1200',
+    defaultPremiumPrice: '700',
+    defaultStandardPrice: '400',
+    highlights: ['Curved Laser Screen', 'Dolby Atmos Surround', 'Recliner Seats', 'Dual Aisle Lighting'],
+    gradient: 'from-violet-600/20 via-purple-600/10 to-transparent',
+    border: 'border-violet-500/50 hover:border-violet-400',
+    textAccent: 'text-violet-300',
+    tagColor: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  },
+  {
+    id: 'CONFERENCE_HALL',
+    name: 'Corporate Conference Hall',
+    badge: 'Keynote Stage • Dual 8K Displays',
+    icon: Building2,
+    defaultVenueName: 'Silicon Grand Convention Center',
+    description: 'Keynote presentation stage, speaker podium, dual 8K presentation screens, delegate aisles & desk rows.',
+    defaultVipPrice: '2500',
+    defaultPremiumPrice: '1500',
+    defaultStandardPrice: '800',
+    highlights: ['Keynote Podium', 'Dual Presentation Displays', 'Aisle Q&A Mics', 'AV Translation Desk'],
+    gradient: 'from-cyan-600/20 via-blue-600/10 to-transparent',
+    border: 'border-cyan-500/50 hover:border-cyan-400',
+    textAccent: 'text-cyan-300',
+    tagColor: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+  {
+    id: 'AUDITORIUM',
+    name: 'Grand Royal Auditorium',
+    badge: 'Orchestra Pit • Acoustic Shell',
+    icon: Music2,
+    defaultVenueName: 'Royal Philharmonic Grand Auditorium',
+    description: 'Curved amphitheater arc seating, proscenium arch, classical orchestra pit & royal balcony boxes.',
+    defaultVipPrice: '2800',
+    defaultPremiumPrice: '1750',
+    defaultStandardPrice: '850',
+    highlights: ['Acoustic Shell', 'Orchestra Pit & Dais', 'Amphitheater Tiers', 'Royal Boxes'],
+    gradient: 'from-pink-600/20 via-rose-600/10 to-transparent',
+    border: 'border-pink-500/50 hover:border-pink-400',
+    textAccent: 'text-pink-300',
+    tagColor: 'bg-pink-500/15 text-pink-300 border-pink-500/30',
+  },
+  {
+    id: 'ARENA',
+    name: 'Live Concert Arena / Dome',
+    badge: 'Catwalk Runway • Laser Lighting Rig',
+    icon: Radio,
+    defaultVenueName: 'Neon Horizon Mega Arena',
+    description: 'Festival thrust concert stage, central runway catwalk extending into Golden Circle pit & laser lighting.',
+    defaultVipPrice: '3500',
+    defaultPremiumPrice: '2000',
+    defaultStandardPrice: '950',
+    highlights: ['Catwalk Runway', 'Golden Circle Pit', 'Subwoofer Stacks', 'FOH Mix Console'],
+    gradient: 'from-rose-600/20 via-amber-600/10 to-transparent',
+    border: 'border-rose-500/50 hover:border-rose-400',
+    textAccent: 'text-rose-300',
+    tagColor: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  },
+  {
+    id: 'OTHERS',
+    name: 'Multipurpose Event Hall',
+    badge: 'Versatile Stage • Balanced Layout',
+    icon: Sparkles,
+    defaultVenueName: 'Grand Multipurpose Hall',
+    description: 'Clean, flexible layout adaptable for comedy nights, exhibitions, banquets, and general seated events.',
+    defaultVipPrice: '2000',
+    defaultPremiumPrice: '1200',
+    defaultStandardPrice: '600',
+    highlights: ['Versatile Stage', 'Flexible Setup', 'Balanced Rows'],
+    gradient: 'from-indigo-600/20 via-slate-600/10 to-transparent',
+    border: 'border-indigo-500/50 hover:border-indigo-400',
+    textAccent: 'text-indigo-300',
+    tagColor: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+  },
+];
 
 interface EventStat {
   id: string;
   title: string;
   startsAt: string;
   venueName: string;
+  venueType?: string;
   totalSeats: number;
   soldSeats: number;
   heldSeats: number;
@@ -77,11 +187,14 @@ export default function OrganizerDashboardPage() {
   // Form state for creating event
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newVenueName, setNewVenueName] = useState('Grand Symphony Hall');
+  const [selectedVenueType, setSelectedVenueType] = useState<
+    'THEATER_DOLBY' | 'CONFERENCE_HALL' | 'AUDITORIUM' | 'ARENA' | 'OTHERS'
+  >('THEATER_DOLBY');
+  const [newVenueName, setNewVenueName] = useState('Dolby Atmos CineDome');
   const [newStartsAt, setNewStartsAt] = useState('');
-  const [vipPrice, setVipPrice] = useState('2500');
-  const [premiumPrice, setPremiumPrice] = useState('1500');
-  const [standardPrice, setStandardPrice] = useState('750');
+  const [vipPrice, setVipPrice] = useState('1200');
+  const [premiumPrice, setPremiumPrice] = useState('700');
+  const [standardPrice, setStandardPrice] = useState('400');
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
@@ -129,13 +242,14 @@ export default function OrganizerDashboardPage() {
         body: JSON.stringify({
           venueId: matchedVenue?.id,
           venueName: newVenueName.trim(),
+          venueType: selectedVenueType,
           title: newTitle.trim(),
           description: newDesc.trim() || undefined,
           startsAt: new Date(newStartsAt).toISOString(),
           pricing: {
-            VIP: Math.round(parseFloat(vipPrice || '2500') * 100),
-            PREMIUM: Math.round(parseFloat(premiumPrice || '1500') * 100),
-            STANDARD: Math.round(parseFloat(standardPrice || '750') * 100),
+            VIP: Math.round(parseFloat(vipPrice || '1200') * 100),
+            PREMIUM: Math.round(parseFloat(premiumPrice || '700') * 100),
+            STANDARD: Math.round(parseFloat(standardPrice || '400') * 100),
           },
         }),
       });
@@ -459,6 +573,129 @@ export default function OrganizerDashboardPage() {
                 </div>
               )}
 
+              {/* 1. SEAT MAP ARCHITECTURE & VENUE TYPE SELECTOR */}
+              <div className="space-y-3 pb-3 border-b border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-[11px] font-bold">
+                      1
+                    </span>
+                    <label className="text-xs font-bold text-white tracking-wide">
+                      Select Seat Map Architecture & Venue Layout <span className="text-rose-400">*</span>
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-slate-400">
+                    SVG seating plan, stage acoustics, and aisle geometry are tailored to your choice
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {SEATMAP_PRESETS.map((preset) => {
+                    const isSelected = selectedVenueType === preset.id;
+                    const PresetIcon = preset.icon;
+
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVenueType(preset.id);
+                          const isOldDefault = SEATMAP_PRESETS.some((p) => p.defaultVenueName === newVenueName.trim());
+                          if (!newVenueName.trim() || isOldDefault) {
+                            setNewVenueName(preset.defaultVenueName);
+                          }
+                          setVipPrice(preset.defaultVipPrice);
+                          setPremiumPrice(preset.defaultPremiumPrice);
+                          setStandardPrice(preset.defaultStandardPrice);
+                        }}
+                        className={`text-left p-3.5 rounded-2xl border transition-all relative overflow-hidden flex flex-col justify-between ${
+                          isSelected
+                            ? `bg-gradient-to-br ${preset.gradient} ${preset.border} ring-2 ring-indigo-500/50 shadow-xl shadow-indigo-950/40`
+                            : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'
+                        }`}
+                      >
+                        <div>
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                                  isSelected
+                                    ? `${preset.tagColor}`
+                                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                                }`}
+                              >
+                                <PresetIcon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h3 className="text-xs font-bold text-white tracking-tight leading-snug">
+                                  {preset.name}
+                                </h3>
+                                <span className={`text-[10px] font-semibold tracking-wide ${preset.textAccent}`}>
+                                  {preset.badge}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Radio check icon */}
+                            <div
+                              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                                isSelected
+                                  ? 'border-indigo-400 bg-indigo-600 text-white'
+                                  : 'border-slate-700 bg-slate-900'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-3">
+                            {preset.description}
+                          </p>
+
+                          {/* Feature tags */}
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {preset.highlights.map((h, hIdx) => (
+                              <span
+                                key={hIdx}
+                                className={`px-1.5 py-0.5 rounded text-[9.5px] font-medium border ${
+                                  isSelected
+                                    ? preset.tagColor
+                                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                                }`}
+                              >
+                                {h}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Pricing Preview Footer */}
+                        <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-500">Rec. Prices:</span>
+                          <span className="font-mono text-slate-300 font-semibold">
+                            ₹{preset.defaultVipPrice} / ₹{preset.defaultPremiumPrice} / ₹{preset.defaultStandardPrice}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. EVENT SCHEDULE & LOCATION DETAILS */}
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-[11px] font-bold">
+                    2
+                  </span>
+                  <label className="text-xs font-bold text-white tracking-wide">
+                    Event Schedule & Details
+                  </label>
+                </div>
+              </div>
+
               {/* Form Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
                 {/* Event Title */}
@@ -664,7 +901,8 @@ export default function OrganizerDashboardPage() {
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="space-y-1">
+                        {ev.venueType && <VenueBadge type={ev.venueType} size="sm" />}
                         <h3 className="font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-1 text-base">
                           {ev.title}
                         </h3>

@@ -210,6 +210,10 @@ html.light .text-sky-400,
 html.light .text-sky-300 { color: #0284c7 !important; }
 html.light .text-cyan-400,
 html.light .text-cyan-300 { color: #0891b2 !important; }
+html.light .text-pink-400,
+html.light .text-pink-300 { color: #be185d !important; }
+html.light .text-fuchsia-400,
+html.light .text-fuchsia-300 { color: #86198f !important; }
 
 html.light .bg-indigo-400\/10,
 html.light .bg-indigo-500\/10,
@@ -237,6 +241,33 @@ html.light .bg-cyan-500\/15 {
   background-color: #ecfeff !important;
 }
 
+html.light .bg-pink-400\/10,
+html.light .bg-pink-500\/10,
+html.light .bg-pink-500\/15,
+html.light .bg-pink-500\/20,
+html.light .bg-pink-500\/30 {
+  background-color: #fdf2f8 !important;
+}
+
+html.light .bg-fuchsia-400\/10,
+html.light .bg-fuchsia-500\/10,
+html.light .bg-fuchsia-500\/15,
+html.light .bg-fuchsia-500\/20 {
+  background-color: #fdf4ff !important;
+}
+
+html.light .border-pink-500\/20,
+html.light .border-pink-500\/30,
+html.light .border-pink-500\/40 {
+  border-color: #fbcfe8 !important;
+}
+
+html.light .border-fuchsia-500\/20,
+html.light .border-fuchsia-500\/30,
+html.light .border-fuchsia-500\/40 {
+  border-color: #f5d0fe !important;
+}
+
 html.light .bg-amber-400\/10,
 html.light .bg-amber-500\/10,
 html.light .bg-amber-500\/15,
@@ -251,13 +282,21 @@ html.light .bg-rose-500\/5 {
   background-color: #fff1f2 !important;
 }
 
-/* Scanner and Alert Cards */
+/* Gate check-in and Telemetry Cards */
+html.light .bg-emerald-950\/20,
+html.light .bg-emerald-950\/30,
 html.light .bg-emerald-950\/40 {
-  background-color: #ecfdf5 !important;
-  border-color: #a7f3d0 !important;
-  color: #065f46 !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
+html.light .border-emerald-900\/40,
+html.light .border-emerald-800\/40 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Scanner and Alert Cards */
 html.light .bg-amber-950\/40 {
   background-color: #fffbeb !important;
   border-color: #fde68a !important;
@@ -348,5 +387,57 @@ html.light [aria-label="Backend status notice"] .bg-indigo-500\/15 {
   background-color: #eef2ff !important;
   border-color: #c7d2fe !important;
   color: #4338ca !important;
+}
+
+/* Blue Tier badge overrides in Light Mode */
+html.light .text-blue-400,
+html.light .text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+html.light .bg-blue-500\/10,
+html.light .bg-blue-500\/15,
+html.light .bg-blue-500\/20 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+/* ========================================================================= */
+/* PRINT STYLES                                                              */
+/* ========================================================================= */
+@media print {
+  /* Hide non-printable navigation, status banners, action buttons */
+  header,
+  footer,
+  aside,
+  button,
+  .no-print,
+  [role="region"] {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .rounded-2xl,
+  .rounded-xl {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-inside: avoid;
+  }
+
+  img {
+    max-width: 100% !important;
+  }
 }
 

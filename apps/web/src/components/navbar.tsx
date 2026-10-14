@@ -54,10 +54,13 @@ export function Navbar() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-6">
 
         {/* Brand Logo */}
-        <Link href="/" aria-label="Home" className="flex items-center shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center shadow-md shadow-indigo-600/30">
+        <Link href="/" aria-label="SeatLock Home" className="flex items-center shrink-0 group">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 group-hover:bg-indigo-500 transition-colors flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Ticket className="w-4 h-4 text-white" />
           </div>
+          <span className="ml-2.5 font-bold text-base text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+            SeatLock
+          </span>
         </Link>
 
         {/* Nav Links */}

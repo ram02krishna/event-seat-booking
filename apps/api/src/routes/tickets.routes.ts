@@ -18,7 +18,17 @@ ticketsRouter.post(
     try {
       const { qrToken } = req.body;
 
-      const cleanToken = qrToken.trim();
+      let cleanToken = qrToken.trim();
+      // Extract token if scanned as URL or query parameter
+      if (cleanToken.includes('token=')) {
+        const match = cleanToken.match(/token=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) cleanToken = match[1];
+      } else if (cleanToken.includes('/')) {
+        const parts = cleanToken.split('/');
+        const lastPart = parts[parts.length - 1];
+        if (lastPart && lastPart.length >= 8) cleanToken = lastPart;
+      }
+
       // 1. Find ticket with order and attendee details (supports both qrToken and ticket id)
       const ticket = await prisma.ticket.findFirst({
         where: {

@@ -48,14 +48,15 @@ export function useEventSocket(eventId: string) {
       socket.on('connect', joinRoom);
     }
 
-    // Refetch all seats on reconnect
-    socket.io.on('reconnect', () => {
+    const handleReconnect = () => {
       socket.emit('join:event', eventId);
       queryClient.invalidateQueries({ queryKey: ['events', eventId, 'seats'] });
-    });
+    };
+
+    socket.io.on('reconnect', handleReconnect);
 
     // Real-time seat updates
-    socket.on('seats:held', (data: SeatPayload) => {
+    const onSeatsHeld = (data: SeatPayload) => {
       queryClient.setQueryData(
         ['events', eventId, 'seats'],
         (old: { eventId: string; venue: any; seats: SeatData[] } | undefined) => {
@@ -76,9 +77,9 @@ export function useEventSocket(eventId: string) {
           };
         }
       );
-    });
+    };
 
-    socket.on('seats:released', (data: SeatPayload) => {
+    const onSeatsReleased = (data: SeatPayload) => {
       queryClient.setQueryData(
         ['events', eventId, 'seats'],
         (old: { eventId: string; venue: any; seats: SeatData[] } | undefined) => {
@@ -100,9 +101,9 @@ export function useEventSocket(eventId: string) {
           };
         }
       );
-    });
+    };
 
-    socket.on('seats:sold', (data: SeatPayload) => {
+    const onSeatsSold = (data: SeatPayload) => {
       queryClient.setQueryData(
         ['events', eventId, 'seats'],
         (old: { eventId: string; venue: any; seats: SeatData[] } | undefined) => {
@@ -124,10 +125,18 @@ export function useEventSocket(eventId: string) {
           };
         }
       );
-    });
+    };
+
+    socket.on('seats:held', onSeatsHeld);
+    socket.on('seats:released', onSeatsReleased);
+    socket.on('seats:sold', onSeatsSold);
 
     return () => {
       socket.off('connect', joinRoom);
+      socket.io.off('reconnect', handleReconnect);
+      socket.off('seats:held', onSeatsHeld);
+      socket.off('seats:released', onSeatsReleased);
+      socket.off('seats:sold', onSeatsSold);
       socket.emit('leave:event', eventId);
     };
   }, [eventId, queryClient]);
