@@ -1,145 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  IndianRupee,
-  Ticket,
-  TrendingUp,
-  Calendar,
-  Plus,
-  Building,
-  ArrowRight,
-  ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  Search,
-  X,
-  MapPin,
-  UserPlus,
-  Trash2,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ScanLine,
-  Copy,
-  Check,
-  Film,
-  Building2,
-  Music2,
-  Radio,
-  Sparkles,
-  Layers,
-  Tv,
-  Volume2,
-} from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Eye, EyeOff, Plus, Search, Trash2, X } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 import { formatINR, formatEventDateTime } from '@/lib/format';
-import { VenueBadge } from '@/components/venue-badge';
+import { VenueBadge, VENUE_LABELS, VenueTypeKey } from '@/components/venue-badge';
 
-interface SeatMapPreset {
-  id: 'THEATER_DOLBY' | 'CONFERENCE_HALL' | 'AUDITORIUM' | 'ARENA' | 'OTHERS';
-  name: string;
-  badge: string;
-  icon: any;
-  defaultVenueName: string;
-  description: string;
-  defaultVipPrice: string;
-  defaultPremiumPrice: string;
-  defaultStandardPrice: string;
-  highlights: string[];
-  gradient: string;
-  border: string;
-  textAccent: string;
-  tagColor: string;
-}
-
-const SEATMAP_PRESETS: SeatMapPreset[] = [
-  {
-    id: 'THEATER_DOLBY',
-    name: 'Theater with Dolby Atmos',
-    badge: 'Dolby Atmos 7.1.4 • Curved Laser Screen',
-    icon: Film,
-    defaultVenueName: 'Dolby Atmos CineDome',
-    description: 'Curved panoramic 4K laser screen, 64-channel spatial surround, VIP recliners & central cinema aisle.',
-    defaultVipPrice: '1200',
-    defaultPremiumPrice: '700',
-    defaultStandardPrice: '400',
-    highlights: ['Curved Laser Screen', 'Dolby Atmos Surround', 'Recliner Seats', 'Dual Aisle Lighting'],
-    gradient: 'from-violet-600/20 via-purple-600/10 to-transparent',
-    border: 'border-violet-500/50 hover:border-violet-400',
-    textAccent: 'text-violet-300',
-    tagColor: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  },
-  {
-    id: 'CONFERENCE_HALL',
-    name: 'Corporate Conference Hall',
-    badge: 'Keynote Stage • Dual 8K Displays',
-    icon: Building2,
-    defaultVenueName: 'Silicon Grand Convention Center',
-    description: 'Keynote presentation stage, speaker podium, dual 8K presentation screens, delegate aisles & desk rows.',
-    defaultVipPrice: '2500',
-    defaultPremiumPrice: '1500',
-    defaultStandardPrice: '800',
-    highlights: ['Keynote Podium', 'Dual Presentation Displays', 'Aisle Q&A Mics', 'AV Translation Desk'],
-    gradient: 'from-cyan-600/20 via-blue-600/10 to-transparent',
-    border: 'border-cyan-500/50 hover:border-cyan-400',
-    textAccent: 'text-cyan-300',
-    tagColor: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-  },
-  {
-    id: 'AUDITORIUM',
-    name: 'Grand Royal Auditorium',
-    badge: 'Orchestra Pit • Acoustic Shell',
-    icon: Music2,
-    defaultVenueName: 'Royal Philharmonic Grand Auditorium',
-    description: 'Curved amphitheater arc seating, proscenium arch, classical orchestra pit & royal balcony boxes.',
-    defaultVipPrice: '2800',
-    defaultPremiumPrice: '1750',
-    defaultStandardPrice: '850',
-    highlights: ['Acoustic Shell', 'Orchestra Pit & Dais', 'Amphitheater Tiers', 'Royal Boxes'],
-    gradient: 'from-pink-600/20 via-rose-600/10 to-transparent',
-    border: 'border-pink-500/50 hover:border-pink-400',
-    textAccent: 'text-pink-300',
-    tagColor: 'bg-pink-500/15 text-pink-300 border-pink-500/30',
-  },
-  {
-    id: 'ARENA',
-    name: 'Live Concert Arena / Dome',
-    badge: 'Catwalk Runway • Laser Lighting Rig',
-    icon: Radio,
-    defaultVenueName: 'Neon Horizon Mega Arena',
-    description: 'Festival thrust concert stage, central runway catwalk extending into Golden Circle pit & laser lighting.',
-    defaultVipPrice: '3500',
-    defaultPremiumPrice: '2000',
-    defaultStandardPrice: '950',
-    highlights: ['Catwalk Runway', 'Golden Circle Pit', 'Subwoofer Stacks', 'FOH Mix Console'],
-    gradient: 'from-rose-600/20 via-amber-600/10 to-transparent',
-    border: 'border-rose-500/50 hover:border-rose-400',
-    textAccent: 'text-rose-300',
-    tagColor: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  },
-  {
-    id: 'OTHERS',
-    name: 'Multipurpose Event Hall',
-    badge: 'Versatile Stage • Balanced Layout',
-    icon: Sparkles,
-    defaultVenueName: 'Grand Multipurpose Hall',
-    description: 'Clean, flexible layout adaptable for comedy nights, exhibitions, banquets, and general seated events.',
-    defaultVipPrice: '2000',
-    defaultPremiumPrice: '1200',
-    defaultStandardPrice: '600',
-    highlights: ['Versatile Stage', 'Flexible Setup', 'Balanced Rows'],
-    gradient: 'from-indigo-600/20 via-slate-600/10 to-transparent',
-    border: 'border-indigo-500/50 hover:border-indigo-400',
-    textAccent: 'text-indigo-300',
-    tagColor: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-  },
-];
+const PRESETS: Record<VenueTypeKey, { venue: string; vip: string; premium: string; standard: string; blurb: string }> = {
+  THEATER_DOLBY: { venue: 'Dolby Atmos Cinema', vip: '1200', premium: '700', standard: '400', blurb: 'Curved screen, recliners up front, centre aisle.' },
+  CONFERENCE_HALL: { venue: 'Convention Centre Hall', vip: '2500', premium: '1500', standard: '800', blurb: 'Keynote stage with delegate rows.' },
+  AUDITORIUM: { venue: 'Grand Auditorium', vip: '2800', premium: '1750', standard: '850', blurb: 'Curved rows facing a proscenium stage.' },
+  ARENA: { venue: 'Concert Arena', vip: '3500', premium: '2000', standard: '950', blurb: 'Thrust stage with a runway through the front pit.' },
+  OTHERS: { venue: 'Multipurpose Hall', vip: '2000', premium: '1200', standard: '600', blurb: 'Simple flexible layout for talks and shows.' },
+};
 
 interface EventStat {
   id: string;
@@ -155,1165 +30,470 @@ interface EventStat {
   revenueCents: number;
 }
 
-interface OrganizerSummary {
-  totalEvents: number;
-  totalVenues: number;
-  totalTicketsSold: number;
-  totalRevenueCents: number;
-  totalSeats: number;
-  overallOccupancyRate: number;
+interface DashboardData {
+  summary: {
+    totalEvents: number;
+    totalVenues: number;
+    totalTicketsSold: number;
+    totalRevenueCents: number;
+    totalSeats: number;
+    overallOccupancyRate: number;
+  };
+  events: EventStat[];
+  recentOrders: Array<{
+    id: string;
+    userEmail: string;
+    eventTitle: string;
+    ticketCount: number;
+    totalCents: number;
+    createdAt: string;
+  }>;
 }
 
-interface RecentOrder {
+interface StaffMember {
   id: string;
-  userEmail: string;
-  eventTitle: string;
-  ticketCount: number;
-  totalCents: number;
+  email: string;
   createdAt: string;
 }
 
-interface DashboardData {
-  summary: OrganizerSummary;
-  events: EventStat[];
-  recentOrders: RecentOrder[];
+/** `<input type="datetime-local">` wants local time, not UTC */
+function localNowForInput() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function rupeesToPaise(value: string, label: string): number {
+  const n = Number(value);
+  if (!value.trim() || !Number.isFinite(n) || n <= 0) throw new Error(`Enter a price above zero for ${label}.`);
+  return Math.round(n * 100);
+}
+
+function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="card p-5">
+      <p className="eyebrow">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+      {hint && <p className="mt-1 text-xs text-ink-3">{hint}</p>}
+    </div>
+  );
+}
+
+function CreateEventForm({ onDone }: { onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const [venueType, setVenueType] = useState<VenueTypeKey>('THEATER_DOLBY');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [venueName, setVenueName] = useState(PRESETS.THEATER_DOLBY.venue);
+  const [startsAt, setStartsAt] = useState('');
+  const [vip, setVip] = useState(PRESETS.THEATER_DOLBY.vip);
+  const [premium, setPremium] = useState(PRESETS.THEATER_DOLBY.premium);
+  const [standard, setStandard] = useState(PRESETS.THEATER_DOLBY.standard);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: venues } = useQuery<{ venues: Array<{ id: string; name: string }> }>({
+    queryKey: ['organizer', 'venues'],
+    queryFn: () => apiFetch('/api/organizer/venues'),
+  });
+
+  function pickType(type: VenueTypeKey) {
+    const wasDefaultName = Object.values(PRESETS).some((p) => p.venue === venueName.trim()) || !venueName.trim();
+    setVenueType(type);
+    if (wasDefaultName) setVenueName(PRESETS[type].venue);
+    setVip(PRESETS[type].vip);
+    setPremium(PRESETS[type].premium);
+    setStandard(PRESETS[type].standard);
+  }
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (title.trim().length < 2) throw new Error('Give the event a title.');
+      if (!venueName.trim()) throw new Error('Enter a venue name.');
+      if (!startsAt) throw new Error('Pick a start date and time.');
+      const when = new Date(startsAt);
+      if (when.getTime() <= Date.now()) throw new Error('The start time needs to be in the future.');
+
+      const pricing = {
+        VIP: rupeesToPaise(vip, 'VIP'),
+        PREMIUM: rupeesToPaise(premium, 'Premium'),
+        STANDARD: rupeesToPaise(standard, 'Standard'),
+      };
+      const existing = venues?.venues.find((v) => v.name.toLowerCase() === venueName.trim().toLowerCase());
+
+      return apiFetch('/api/organizer/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          venueId: existing?.id,
+          venueName: venueName.trim(),
+          venueType,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          startsAt: when.toISOString(),
+          pricing,
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer'] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      onDone();
+    },
+    onError: (e: any) => setError(e.message || 'Could not create the event.'),
+  });
+
+  const priceInput = (label: string, value: string, set: (v: string) => void) => (
+    <div>
+      <label className="field-label">{label}</label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-3">₹</span>
+        <input type="number" min={1} step="any" inputMode="decimal" value={value} onChange={(e) => set(e.target.value)} className="field pl-7 tabular-nums" />
+      </div>
+    </div>
+  );
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        create.mutate();
+      }}
+      className="card space-y-6 p-5 sm:p-6"
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-2xl font-semibold">New event</h2>
+        <button type="button" onClick={onDone} className="btn btn-ghost !p-2" aria-label="Close form">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="notice notice-error">
+          {error}
+        </p>
+      )}
+
+      <fieldset>
+        <legend className="field-label">Seating layout</legend>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {(Object.keys(PRESETS) as VenueTypeKey[]).map((type) => (
+            <label
+              key={type}
+              className={`cursor-pointer rounded-lg border p-3 transition-colors ${
+                venueType === type ? 'border-accent bg-accent-soft/50' : 'border-line-strong hover:bg-sunken'
+              }`}
+            >
+              <input type="radio" name="layout" className="sr-only" checked={venueType === type} onChange={() => pickType(type)} />
+              <span className="block text-sm font-semibold">{VENUE_LABELS[type]}</span>
+              <span className="mt-0.5 block text-xs text-ink-3">{PRESETS[type].blurb}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="field-label">Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="field" />
+        </div>
+        <div>
+          <label className="field-label">Venue name</label>
+          <input value={venueName} onChange={(e) => setVenueName(e.target.value)} className="field" />
+        </div>
+        <div>
+          <label className="field-label">Starts</label>
+          <input type="datetime-local" min={localNowForInput()} value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="field" />
+        </div>
+        <div>
+          <label className="field-label">
+            Description <span className="font-normal text-ink-3">(optional)</span>
+          </label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} className="field" />
+        </div>
+      </div>
+
+      <div>
+        <p className="field-label">Ticket prices</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {priceInput('VIP', vip, setVip)}
+          {priceInput('Premium', premium, setPremium)}
+          {priceInput('Standard', standard, setStandard)}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onDone} className="btn btn-secondary">
+          Cancel
+        </button>
+        <button type="submit" disabled={create.isPending} className="btn btn-primary">
+          {create.isPending ? 'Publishing…' : 'Publish event'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function StaffSection() {
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery<{ staff: StaffMember[] }>({
+    queryKey: ['organizer', 'staff'],
+    queryFn: () => apiFetch('/api/organizer/staff'),
+  });
+
+  const create = useMutation({
+    mutationFn: () => {
+      if (password.length < 6) throw new Error('Passwords need at least 6 characters.');
+      return apiFetch('/api/organizer/staff', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] });
+      setOk(`${email.trim()} can now sign in and scan tickets.`);
+      setEmail('');
+      setPassword('');
+      setError(null);
+    },
+    onError: (e: any) => {
+      setOk(null);
+      setError(e.message || 'Could not create the account.');
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/organizer/staff/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] }),
+  });
+
+  const staff = data?.staff ?? [];
+
+  return (
+    <section className="space-y-4" aria-labelledby="staff-heading">
+      <div>
+        <h2 id="staff-heading" className="font-display text-2xl font-semibold">
+          Gate staff
+        </h2>
+        <p className="text-sm text-ink-2">Staff accounts can scan tickets at <Link href="/staff/scanner" className="underline">the scanner</Link>, and nothing else.</p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setOk(null);
+            setError(null);
+            create.mutate();
+          }}
+          className="card space-y-4 p-5"
+        >
+          {error && <p role="alert" className="notice notice-error">{error}</p>}
+          {ok && <p className="notice notice-ok">{ok}</p>}
+          <div>
+            <label className="field-label">Email</label>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="field" autoComplete="off" />
+          </div>
+          <div>
+            <label className="field-label">Temporary password</label>
+            <div className="relative">
+              <input type={show ? 'text' : 'password'} required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="field pr-11" autoComplete="new-password" />
+              <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-ink-3 hover:text-ink" aria-label={show ? 'Hide password' : 'Show password'}>
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <button type="submit" disabled={create.isPending} className="btn btn-primary w-full">
+            {create.isPending ? 'Creating…' : 'Create staff account'}
+          </button>
+        </form>
+
+        <div className="card divide-y divide-line">
+          {isLoading ? (
+            <div className="skeleton m-4 h-16" />
+          ) : staff.length === 0 ? (
+            <p className="p-6 text-center text-sm text-ink-3">No staff accounts yet.</p>
+          ) : (
+            staff.map((m) => (
+              <div key={m.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{m.email}</p>
+                  <p className="text-xs text-ink-3">Added {new Date(m.createdAt).toLocaleDateString('en-IN')}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={remove.isPending}
+                  onClick={() => confirm(`Remove scanner access for ${m.email}?`) && remove.mutate(m.id)}
+                  className="btn btn-ghost btn-sm text-danger"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default function OrganizerDashboardPage() {
-  const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateCard, setShowCreateCard] = useState(false);
+  const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  // Form state for creating event
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [selectedVenueType, setSelectedVenueType] = useState<
-    'THEATER_DOLBY' | 'CONFERENCE_HALL' | 'AUDITORIUM' | 'ARENA' | 'OTHERS'
-  >('THEATER_DOLBY');
-  const [newVenueName, setNewVenueName] = useState('Dolby Atmos CineDome');
-  const [newStartsAt, setNewStartsAt] = useState('');
-  const [vipPrice, setVipPrice] = useState('1200');
-  const [premiumPrice, setPremiumPrice] = useState('700');
-  const [standardPrice, setStandardPrice] = useState('400');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-
-  // Auth query
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiFetch('/api/auth/me'),
     retry: false,
   });
+  const isOrganizer = authData?.user?.role === 'ORGANIZER';
 
-  const user = authData?.user;
-  const isOrganizer = user?.role === 'ORGANIZER';
-
-  // Stats query
-  const {
-    data: statsData,
-    isLoading: statsLoading,
-  } = useQuery<DashboardData>({
+  const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['organizer', 'stats'],
     queryFn: () => apiFetch('/api/organizer/stats'),
     enabled: isOrganizer,
-    refetchInterval: 10000, // live pulse every 10s
-  });
-
-  // Venues query for quick chips
-  const { data: venuesData } = useQuery<{ venues: Array<{ id: string; name: string }> }>({
-    queryKey: ['organizer', 'venues'],
-    queryFn: () => apiFetch('/api/organizer/venues'),
-    enabled: isOrganizer,
-  });
-
-  // Create event mutation
-  const createEventMutation = useMutation({
-    mutationFn: async () => {
-      if (!newTitle.trim()) throw new Error('Please enter an event title');
-      if (!newVenueName.trim()) throw new Error('Please enter a venue name');
-      if (!newStartsAt) throw new Error('Please pick a start date and time');
-
-      const matchedVenue = venuesData?.venues?.find(
-        (v) => v.name.toLowerCase() === newVenueName.trim().toLowerCase()
-      );
-
-      return apiFetch('/api/organizer/events', {
-        method: 'POST',
-        body: JSON.stringify({
-          venueId: matchedVenue?.id,
-          venueName: newVenueName.trim(),
-          venueType: selectedVenueType,
-          title: newTitle.trim(),
-          description: newDesc.trim() || undefined,
-          startsAt: new Date(newStartsAt).toISOString(),
-          pricing: {
-            VIP: Math.round(parseFloat(vipPrice || '1200') * 100),
-            PREMIUM: Math.round(parseFloat(premiumPrice || '700') * 100),
-            STANDARD: Math.round(parseFloat(standardPrice || '400') * 100),
-          },
-        }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizer', 'stats'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      setFormSuccess('Event successfully published and seat map generated!');
-      setNewTitle('');
-      setNewDesc('');
-      setNewStartsAt('');
-      setFormError(null);
-      setTimeout(() => {
-        setFormSuccess(null);
-        setShowCreateCard(false);
-      }, 2500);
-    },
-    onError: (err: any) => {
-      setFormError(err.message || 'Failed to create event');
-    },
-  });
-
-  // Staff management state
-  const [staffEmail, setStaffEmail] = useState('');
-  const [staffPassword, setStaffPassword] = useState('');
-  const [showStaffPassword, setShowStaffPassword] = useState(false);
-  const [copiedStaffEmail, setCopiedStaffEmail] = useState<string | null>(null);
-  const [staffSearch, setStaffSearch] = useState('');
-  const [staffError, setStaffError] = useState<string | null>(null);
-  const [staffSuccess, setStaffSuccess] = useState<string | null>(null);
-
-  // Staff query
-  const { data: staffData, isLoading: staffLoading } = useQuery<{
-    staff: Array<{ id: string; email: string; role: string; createdAt: string }>;
-  }>({
-    queryKey: ['organizer', 'staff'],
-    queryFn: () => apiFetch('/api/organizer/staff'),
-    enabled: isOrganizer,
-  });
-
-  const staffMembers = staffData?.staff || [];
-  const filteredStaff = staffMembers.filter((m) =>
-    m.email.toLowerCase().includes(staffSearch.toLowerCase())
-  );
-
-  // Create staff mutation
-  const createStaffMutation = useMutation({
-    mutationFn: async () => {
-      if (!staffEmail.trim()) throw new Error('Please enter a staff email');
-      if (staffPassword.length < 6) throw new Error('Password must be at least 6 characters');
-
-      return apiFetch('/api/organizer/staff', {
-        method: 'POST',
-        body: JSON.stringify({ email: staffEmail.trim(), password: staffPassword }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] });
-      setStaffSuccess(`Staff account (${staffEmail.trim()}) successfully created!`);
-      setStaffEmail('');
-      setStaffPassword('');
-      setStaffError(null);
-      setTimeout(() => setStaffSuccess(null), 3500);
-    },
-    onError: (err: any) => {
-      setStaffError(err.message || 'Failed to create staff account');
-    },
-  });
-
-  // Delete staff mutation
-  const deleteStaffMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiFetch(`/api/organizer/staff/${id}`, { method: 'DELETE' });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizer', 'staff'] });
-    },
+    refetchInterval: 15000,
   });
 
   if (authLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-400">
-        Loading organizer dashboard...
-      </div>
-    );
-  }
-
-  // Unauthorized view
-  if (!isOrganizer) {
-    return (
-      <main className="max-w-xl mx-auto px-4 py-20">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center shadow-xl space-y-6">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Building className="w-7 h-7" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Organizer Portal</h1>
-            <p className="text-sm text-slate-400">
-              This console provides live occupancy telemetry, revenue analytics, and gate check-in reports. You must be signed in with an <strong className="text-indigo-300">ORGANIZER</strong> role.
-            </p>
-          </div>
-
-          <div className="pt-2">
-            <Link
-              href="/login"
-              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
-            >
-              Sign In to Organizer Account
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
+      <main className="page max-w-6xl py-12" aria-busy="true">
+        <div className="skeleton h-64" />
       </main>
     );
   }
 
-  const summary = statsData?.summary;
-  const events = statsData?.events || [];
-  const recentOrders = statsData?.recentOrders || [];
+  if (!isOrganizer) {
+    return (
+      <main className="page max-w-md space-y-4 py-24 text-center">
+        <h1 className="font-display text-3xl font-semibold">Organizer area</h1>
+        <p className="text-sm text-ink-2">Sales, occupancy and staff management are available to organizer accounts.</p>
+        <Link href="/login?redirect=/organizer" className="btn btn-primary btn-sm">
+          Sign in
+        </Link>
+      </main>
+    );
+  }
 
-  const filteredEvents = events.filter(
-    (ev) =>
-      ev.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ev.venueName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const summary = data?.summary;
+  const q = search.trim().toLowerCase();
+  const events = (data?.events ?? []).filter((e) => !q || e.title.toLowerCase().includes(q) || e.venueName.toLowerCase().includes(q));
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Organizer Overview
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-              Live Telemetry
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time ticket sales, capacity occupancy, and venue performance.
-          </p>
+    <main className="page max-w-6xl space-y-10 py-8 sm:py-12">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="font-display text-4xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-[15px] text-ink-2">Sales and seat occupancy, refreshed every few seconds.</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/staff/scanner"
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Staff Scanner
-          </Link>
-          <button
-            onClick={() => setShowCreateCard((prev) => !prev)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md ${
-              showCreateCard
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
-            }`}
-          >
-            {showCreateCard ? (
-              <>
-                <X className="w-4 h-4" />
-                <span>Close Form</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                <span>New Event</span>
-              </>
-            )}
+        {!creating && (
+          <button type="button" onClick={() => setCreating(true)} className="btn btn-primary">
+            <Plus className="h-4 w-4" />
+            New event
           </button>
-        </div>
-      </div>
-
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Gross Revenue</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-              <IndianRupee className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white tracking-tight">
-              {formatINR(summary?.totalRevenueCents ?? 0)}
-            </div>
-            <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-emerald-400 font-medium">Confirmed</span> across all events
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Tickets Sold */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tickets Sold</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-              <Ticket className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white tracking-tight">
-              {summary?.totalTicketsSold ?? 0}
-              <span className="text-sm font-normal text-slate-500 ml-1.5">/ {summary?.totalSeats ?? 0} seats</span>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-1">
-              Active inventory booked
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Occupancy Rate */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Occupancy Rate</span>
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white tracking-tight">
-              {summary?.overallOccupancyRate ?? 0}%
-            </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(100, summary?.overallOccupancyRate ?? 0)}%` }}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Live Events */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Active Events</span>
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center border border-violet-500/20">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white tracking-tight">
-              {summary?.totalEvents ?? 0}
-            </div>
-            <div className="text-[11px] text-slate-500 mt-1">
-              In {summary?.totalVenues ?? 0} configured venues
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Inline Create New Event Card (No Drawer / Modal) */}
-      <AnimatePresence>
-        {showCreateCard && (
-          <motion.div
-            initial={{ opacity: 0, y: -16, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -16, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <div className="rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-6 sm:p-7 shadow-2xl backdrop-blur-md space-y-6">
-              {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white tracking-tight">Create New Event</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Configure your event schedule, venue location, and tier pricing.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateCard(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  title="Close form"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Success Notice */}
-              {formSuccess && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{formSuccess}</span>
-                </div>
-              )}
-
-              {/* Error Notice */}
-              {formError && (
-                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-                  {formError}
-                </div>
-              )}
-
-              {/* 1. SEAT MAP ARCHITECTURE & VENUE TYPE SELECTOR */}
-              <div className="space-y-3 pb-3 border-b border-slate-800/80">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-[11px] font-bold">
-                      1
-                    </span>
-                    <label className="text-xs font-bold text-white tracking-wide">
-                      Select Seat Map Architecture & Venue Layout <span className="text-rose-400">*</span>
-                    </label>
-                  </div>
-                  <span className="text-[11px] text-slate-400">
-                    SVG seating plan, stage acoustics, and aisle geometry are tailored to your choice
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {SEATMAP_PRESETS.map((preset) => {
-                    const isSelected = selectedVenueType === preset.id;
-                    const PresetIcon = preset.icon;
-
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedVenueType(preset.id);
-                          const isOldDefault = SEATMAP_PRESETS.some((p) => p.defaultVenueName === newVenueName.trim());
-                          if (!newVenueName.trim() || isOldDefault) {
-                            setNewVenueName(preset.defaultVenueName);
-                          }
-                          setVipPrice(preset.defaultVipPrice);
-                          setPremiumPrice(preset.defaultPremiumPrice);
-                          setStandardPrice(preset.defaultStandardPrice);
-                        }}
-                        className={`text-left p-3.5 rounded-2xl border transition-all relative overflow-hidden flex flex-col justify-between ${
-                          isSelected
-                            ? `bg-gradient-to-br ${preset.gradient} ${preset.border} ring-2 ring-indigo-500/50 shadow-xl shadow-indigo-950/40`
-                            : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'
-                        }`}
-                      >
-                        <div>
-                          {/* Header row */}
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
-                                  isSelected
-                                    ? `${preset.tagColor}`
-                                    : 'bg-slate-900 border-slate-800 text-slate-400'
-                                }`}
-                              >
-                                <PresetIcon className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <h3 className="text-xs font-bold text-white tracking-tight leading-snug">
-                                  {preset.name}
-                                </h3>
-                                <span className={`text-[10px] font-semibold tracking-wide ${preset.textAccent}`}>
-                                  {preset.badge}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Radio check icon */}
-                            <div
-                              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                                isSelected
-                                  ? 'border-indigo-400 bg-indigo-600 text-white'
-                                  : 'border-slate-700 bg-slate-900'
-                              }`}
-                            >
-                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                            </div>
-                          </div>
-
-                          {/* Description */}
-                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-3">
-                            {preset.description}
-                          </p>
-
-                          {/* Feature tags */}
-                          <div className="flex flex-wrap gap-1.5 mb-3">
-                            {preset.highlights.map((h, hIdx) => (
-                              <span
-                                key={hIdx}
-                                className={`px-1.5 py-0.5 rounded text-[9.5px] font-medium border ${
-                                  isSelected
-                                    ? preset.tagColor
-                                    : 'bg-slate-900 border-slate-800 text-slate-500'
-                                }`}
-                              >
-                                {h}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Pricing Preview Footer */}
-                        <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
-                          <span className="text-slate-500">Rec. Prices:</span>
-                          <span className="font-mono text-slate-300 font-semibold">
-                            ₹{preset.defaultVipPrice} / ₹{preset.defaultPremiumPrice} / ₹{preset.defaultStandardPrice}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 2. EVENT SCHEDULE & LOCATION DETAILS */}
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-[11px] font-bold">
-                    2
-                  </span>
-                  <label className="text-xs font-bold text-white tracking-wide">
-                    Event Schedule & Details
-                  </label>
-                </div>
-              </div>
-
-              {/* Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                {/* Event Title */}
-                <div className="space-y-1.5">
-                  <label className="block text-slate-300 font-semibold">
-                    Event Title <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Electric Symphony Night"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-
-                {/* Venue / Location (Clean text input) */}
-                <div className="space-y-1.5">
-                  <label className="block text-slate-300 font-semibold">
-                    Venue / Location Name <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="e.g. Grand Symphony Hall"
-                      value={newVenueName}
-                      onChange={(e) => setNewVenueName(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
-                    />
-                  </div>
-                </div>
-
-                {/* Start Date & Time */}
-                <div className="space-y-1.5">
-                  <label className="block text-slate-300 font-semibold">
-                    Start Date & Time <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={newStartsAt}
-                    min={new Date().toISOString().slice(0, 16)}
-                    onChange={(e) => setNewStartsAt(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <label className="block text-slate-300 font-semibold">
-                    Description <span className="text-slate-500 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Brief description of the concert or event..."
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Tier Pricing Cards */}
-              <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Seat Tier Pricing (Indian Rupees ₹)
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    Automatically assigned to generated seat rows
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* VIP */}
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-amber-500/30 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        VIP Tier
-                      </span>
-                      <span className="text-[11px] text-slate-500">Front Rows</span>
-                    </div>
-                    <div className="relative">
-                      <span className="text-xs font-mono text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={vipPrice}
-                        onChange={(e) => setVipPrice(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-xs font-mono font-semibold text-white focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* PREMIUM */}
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-indigo-500/30 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                        Premium Tier
-                      </span>
-                      <span className="text-[11px] text-slate-500">Mid Rows</span>
-                    </div>
-                    <div className="relative">
-                      <span className="text-xs font-mono text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={premiumPrice}
-                        onChange={(e) => setPremiumPrice(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-xs font-mono font-semibold text-white focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* STANDARD */}
-                  <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-500/30 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                        Standard Tier
-                      </span>
-                      <span className="text-[11px] text-slate-500">Upper Rows</span>
-                    </div>
-                    <div className="relative">
-                      <span className="text-xs font-mono text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={standardPrice}
-                        onChange={(e) => setStandardPrice(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-xs font-mono font-semibold text-white focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateCard(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={createEventMutation.isPending}
-                  onClick={() => createEventMutation.mutate()}
-                  className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shadow-indigo-600/30 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {createEventMutation.isPending ? 'Publishing Event...' : 'Publish Event'}
-                </button>
-              </div>
-            </div>
-          </motion.div>
         )}
-      </AnimatePresence>
+      </header>
 
-      {/* Events Grid Section */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            <span>Event Performance</span>
-            <span className="text-xs font-normal text-slate-400">({events.length})</span>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Revenue" value={isLoading ? '–' : formatINR(summary?.totalRevenueCents ?? 0)} hint="Confirmed orders" />
+        <Stat label="Tickets sold" value={isLoading ? '–' : summary?.totalTicketsSold ?? 0} hint={`of ${summary?.totalSeats ?? 0} seats`} />
+        <Stat label="Occupancy" value={isLoading ? '–' : `${summary?.overallOccupancyRate ?? 0}%`} hint="Across all events" />
+        <Stat label="Events" value={isLoading ? '–' : summary?.totalEvents ?? 0} hint={`${summary?.totalVenues ?? 0} venues`} />
+      </div>
+
+      {creating && <CreateEventForm onDone={() => setCreating(false)} />}
+
+      <section className="space-y-4" aria-labelledby="events-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="events-heading" className="font-display text-2xl font-semibold">
+            Events
           </h2>
-
-          <div className="relative max-w-xs w-full">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search event or venue..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search events or venues" className="field pl-9" aria-label="Search events" />
           </div>
         </div>
 
-        {statsLoading ? (
-          <div className="py-12 text-center text-slate-500 text-xs">Loading performance data...</div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-8 text-center text-slate-400 text-xs">
-            No events match your search.
-          </div>
+        {isLoading ? (
+          <div className="skeleton h-40" />
+        ) : events.length === 0 ? (
+          <p className="card p-8 text-center text-sm text-ink-3">{data?.events.length ? 'No events match your search.' : 'No events yet. Create the first one.'}</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredEvents.map((ev) => {
-              const soldPercent = ev.totalSeats > 0 ? (ev.soldSeats / ev.totalSeats) * 100 : 0;
-              const heldPercent = ev.totalSeats > 0 ? (ev.heldSeats / ev.totalSeats) * 100 : 0;
-              const availPercent = ev.totalSeats > 0 ? (ev.availableSeats / ev.totalSeats) * 100 : 0;
-
-              return (
-                <div
-                  key={ev.id}
-                  className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 flex flex-col justify-between hover:border-slate-700/80 transition-all hover:shadow-xl hover:shadow-indigo-950/20 group"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        {ev.venueType && <VenueBadge type={ev.venueType} size="sm" />}
-                        <h3 className="font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-1 text-base">
-                          {ev.title}
-                        </h3>
-                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                          <Building className="w-3.5 h-3.5 text-slate-500" />
-                          {ev.venueName}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-emerald-400">
-                          {formatINR(ev.revenueCents)}
-                        </span>
-                        <div className="text-[10px] text-slate-500">Revenue</div>
-                      </div>
-                    </div>
-
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-slate-800/60">
-                      <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span>{formatEventDateTime(ev.startsAt)}</span>
-                    </div>
-
-                    {/* Capacity Visual Progress Bar */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-medium">Occupancy</span>
-                        <span className="font-bold text-indigo-300">{ev.occupancyRate}%</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-800/80 rounded-full flex overflow-hidden">
-                        {soldPercent > 0 && (
-                          <div
-                            style={{ width: `${soldPercent}%` }}
-                            className="bg-emerald-500 h-full"
-                            title={`Sold: ${ev.soldSeats}`}
-                          />
-                        )}
-                        {heldPercent > 0 && (
-                          <div
-                            style={{ width: `${heldPercent}%` }}
-                            className="bg-amber-400 h-full"
-                            title={`Held: ${ev.heldSeats}`}
-                          />
-                        )}
-                        {availPercent > 0 && (
-                          <div
-                            style={{ width: `${availPercent}%` }}
-                            className="bg-slate-700/60 h-full"
-                            title={`Available: ${ev.availableSeats}`}
-                          />
-                        )}
-                      </div>
-
-                      {/* Legend counts */}
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          Sold: <strong className="text-slate-300">{ev.soldSeats}</strong>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                          Held: <strong className="text-slate-300">{ev.heldSeats}</strong>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                          Avail: <strong className="text-slate-300">{ev.availableSeats}</strong>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card actions */}
-                  <div className="pt-4 mt-4 border-t border-slate-800/60 flex items-center justify-between gap-2">
-                    <Link
-                      href={`/events/${ev.id}`}
-                      className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
-                      target="_blank"
-                    >
-                      <span>Public Map</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
-
-                    <Link
-                      href={`/organizer/events/${ev.id}`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition-all flex items-center gap-1"
-                    >
-                      <span>Analytics</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+          <div className="card divide-y divide-line">
+            {events.map((ev) => (
+              <div key={ev.id} className="grid gap-4 p-5 md:grid-cols-[1fr_220px_130px] md:items-center">
+                <div className="min-w-0 space-y-1.5">
+                  <VenueBadge type={ev.venueType} />
+                  <Link href={`/organizer/events/${ev.id}`} className="block truncate font-display text-xl font-semibold hover:text-accent">
+                    {ev.title}
+                  </Link>
+                  <p className="truncate text-[13px] text-ink-3">
+                    {ev.venueName} · {formatEventDateTime(ev.startsAt)}
+                  </p>
                 </div>
-              );
-            })}
+
+                <div className="space-y-1.5">
+                  <div className="flex h-1.5 overflow-hidden rounded-full bg-line" role="img" aria-label={`${ev.soldSeats} sold, ${ev.heldSeats} held, ${ev.availableSeats} available`}>
+                    <div className="bg-accent" style={{ width: `${ev.totalSeats ? (ev.soldSeats / ev.totalSeats) * 100 : 0}%` }} />
+                    <div className="bg-warn/60" style={{ width: `${ev.totalSeats ? (ev.heldSeats / ev.totalSeats) * 100 : 0}%` }} />
+                  </div>
+                  <p className="text-xs tabular-nums text-ink-3">
+                    {ev.soldSeats} sold · {ev.heldSeats} held · {ev.availableSeats} open
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 md:block md:text-right">
+                  <p className="font-semibold tabular-nums">{formatINR(ev.revenueCents)}</p>
+                  <Link href={`/events/${ev.id}`} className="text-xs text-ink-3 underline hover:text-ink">
+                    Public page
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
 
-      {/* Recent Orders Feed */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          <span>Recent Booking Activity</span>
-          <span className="text-xs font-normal text-slate-400">({recentOrders.length})</span>
+      <section className="space-y-4" aria-labelledby="orders-heading">
+        <h2 id="orders-heading" className="font-display text-2xl font-semibold">
+          Recent orders
         </h2>
-
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/30 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px]">
+        {(data?.recentOrders ?? []).length === 0 ? (
+          <p className="card p-8 text-center text-sm text-ink-3">Orders will appear here as they come in.</p>
+        ) : (
+          <div className="card overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="border-b border-line text-xs text-ink-3">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Order ID</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium text-center">Tickets</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium text-right">Time</th>
+                  <th className="px-5 py-3 font-medium">Customer</th>
+                  <th className="px-3 py-3 font-medium">Event</th>
+                  <th className="px-3 py-3 text-right font-medium">Tickets</th>
+                  <th className="px-3 py-3 text-right font-medium">Total</th>
+                  <th className="px-5 py-3 text-right font-medium">When</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                {recentOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                      No orders confirmed yet.
+              <tbody className="divide-y divide-line">
+                {data!.recentOrders.map((o) => (
+                  <tr key={o.id}>
+                    <td className="max-w-[200px] truncate px-5 py-3">{o.userEmail}</td>
+                    <td className="max-w-[220px] truncate px-3 py-3 text-ink-2">{o.eventTitle}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{o.ticketCount}</td>
+                    <td className="px-3 py-3 text-right font-medium tabular-nums">{formatINR(o.totalCents)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right text-ink-3">
+                      {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                     </td>
                   </tr>
-                ) : (
-                  recentOrders.map((order) => {
-                    const orderDate = new Date(order.createdAt);
-                    return (
-                      <tr key={order.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                          {order.id.slice(0, 8)}...
-                        </td>
-                        <td className="px-4 py-3 font-medium text-white">{order.userEmail}</td>
-                        <td className="px-4 py-3 text-slate-300 max-w-xs truncate">{order.eventTitle}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                            {order.ticketCount} {order.ticketCount === 1 ? 'ticket' : 'tickets'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-emerald-400">
-                          {formatINR(order.totalCents)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-500 text-[11px]">
-                          {orderDate.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
       </section>
 
-      {/* Staff Management Section */}
-      <section className="space-y-4 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <ScanLine className="w-4 h-4" />
-              </div>
-              <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                <span>Gate Staff & Scanner Access</span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                  {staffMembers.length} {staffMembers.length === 1 ? 'account' : 'accounts'}
-                </span>
-              </h2>
-            </div>
-            <p className="text-xs text-slate-400 pl-9">
-              Provision turnstile staff accounts to operate the camera QR scanner at venue entry gates.
-            </p>
-          </div>
-
-          <Link
-            href="/staff/scanner"
-            target="_blank"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs font-semibold text-slate-300 hover:text-white transition-colors shrink-0 self-start sm:self-auto"
-          >
-            <span>Launch Gate Scanner</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Create Staff Form Card (5 cols) */}
-          <div className="lg:col-span-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-5 shadow-sm flex flex-col justify-between">
-            <div className="space-y-5">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
-                <div className="w-8 h-8 rounded-xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Create Staff Account</h3>
-                  <p className="text-[11px] text-slate-400">Assign credentials for event gatekeepers</p>
-                </div>
-              </div>
-
-              {staffSuccess && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">{staffSuccess}</span>
-                </div>
-              )}
-
-              {staffError && (
-                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-start gap-2.5">
-                  <X className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">{staffError}</span>
-                </div>
-              )}
-
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  createStaffMutation.mutate();
-                }}
-                className="space-y-4"
-              >
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Staff Email Address <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="gatekeeper@event.com"
-                      value={staffEmail}
-                      onChange={(e) => setStaffEmail(e.target.value)}
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Password (min 6 characters) <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type={showStaffPassword ? 'text' : 'password'}
-                      required
-                      minLength={6}
-                      placeholder="••••••••"
-                      value={staffPassword}
-                      onChange={(e) => setStaffPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowStaffPassword(!showStaffPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-1"
-                      title={showStaffPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showStaffPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={createStaffMutation.isPending}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>{createStaffMutation.isPending ? 'Provisioning Staff...' : 'Create Staff Account'}</span>
-                </button>
-              </form>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 text-[11px] text-slate-400 space-y-1 mt-4">
-              <p className="font-semibold text-slate-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                Role & Security Model
-              </p>
-              <p className="text-slate-500 leading-relaxed">
-                Staff accounts can log in and validate attendee QR passes, but have zero access to event creation, ticket revenue, or dashboard analytics.
-              </p>
-            </div>
-          </div>
-
-          {/* Staff Accounts List Card (7 cols) */}
-          <div className="lg:col-span-7 rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden flex flex-col justify-between shadow-sm">
-            <div>
-              <div className="p-4 sm:p-5 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-bold text-white tracking-tight">Authorized Gate Staff</h3>
-                  <p className="text-[11px] text-slate-400">Personnel active for live QR validation</p>
-                </div>
-
-                {staffMembers.length > 2 && (
-                  <div className="relative w-44">
-                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Filter staff..."
-                      value={staffSearch}
-                      onChange={(e) => setStaffSearch(e.target.value)}
-                      className="w-full pl-8 pr-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="divide-y divide-slate-800/60 overflow-y-auto max-h-[380px]">
-                {staffLoading ? (
-                  <div className="p-12 text-center text-xs text-slate-500 space-y-2">
-                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p>Loading gate staff...</p>
-                  </div>
-                ) : filteredStaff.length === 0 ? (
-                  <div className="p-12 text-center text-xs text-slate-400 space-y-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-center mx-auto text-slate-500">
-                      <ScanLine className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-300">
-                        {staffSearch ? 'No staff matching filter' : 'No staff accounts provisioned yet'}
-                      </p>
-                      <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
-                        Use the form on the left to create gatekeeper accounts. Staff will be able to log in and use the turnstile scanner.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  filteredStaff.map((member) => (
-                    <div
-                      key={member.id}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-800/20 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                          <ScanLine className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs text-white truncate">{member.email}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard?.writeText(member.email);
-                                setCopiedStaffEmail(member.id);
-                                setTimeout(() => setCopiedStaffEmail(null), 2000);
-                              }}
-                              className="text-slate-500 hover:text-slate-300 transition-colors"
-                              title="Copy email"
-                            >
-                              {copiedStaffEmail === member.id ? (
-                                <Check className="w-3 h-3 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              STAFF
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>Active Gate Scanner</span>
-                            <span>&bull;</span>
-                            <span>Added {new Date(member.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 sm:self-center self-end">
-                        <Link
-                          href="/staff/scanner"
-                          target="_blank"
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1"
-                        >
-                          <span>Scanner</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Revoke turnstile scanner access for ${member.email}?`)) {
-                              deleteStaffMutation.mutate(member.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                          title="Revoke staff account"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Staff log in at <code className="text-slate-400">/login</code> and verify tickets at <code className="text-slate-400">/staff/scanner</code></span>
-              </span>
-              <span className="text-slate-600 hidden sm:inline">&bull;</span>
-              <span className="text-slate-500">Instant gate sync</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <StaffSection />
     </main>
   );
 }

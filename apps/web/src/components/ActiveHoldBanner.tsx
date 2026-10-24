@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, CheckCircle2, ArrowRight, Trash2 } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { formatINR } from '@/lib/format';
 import { apiFetch } from '@/lib/api';
 import { useCartStore } from '@/store/cartStore';
+import { useCountdown, formatClock } from '@/hooks/useCountdown';
 
 export interface ActiveHoldInfo {
   eventId: string;
@@ -16,6 +17,7 @@ export interface ActiveHoldInfo {
   seats: Array<{
     id: string;
     seatId?: string;
+    section?: string;
     row: string;
     number: number;
     tier: string;
@@ -31,144 +33,95 @@ interface ActiveHoldBannerProps {
 
 export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
   const { clearHold, restoreHold } = useCartStore();
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Keep the persisted cart in step with what the server says we hold, so checkout opens instantly.
+  // Keyed on the hold's content, not object identity, because the query refetches on an interval.
+  const holdKey = `${hold.eventId}|${hold.holdExpiresAt}|${hold.seats.map((s) => s.id).join(',')}`;
   useEffect(() => {
-    // Also sync to cartStore so checkout has immediate state
-    if (hold.seats.length > 0) {
-      restoreHold(
-        hold.eventId,
-        hold.seats.map((s) => ({
-          id: s.id,
-          seatId: s.seatId || s.id,
-          section: 'Main',
-          row: s.row,
-          number: s.number,
-          tier: s.tier,
-          price: s.price,
-        })),
-        hold.holdExpiresAt
-      );
-    }
-  }, [hold, restoreHold]);
+    if (hold.seats.length === 0) return;
+    restoreHold(
+      hold.eventId,
+      hold.seats.map((s) => ({
+        id: s.id,
+        seatId: s.seatId || s.id,
+        section: s.section ?? '',
+        row: s.row,
+        number: s.number,
+        tier: s.tier,
+        price: s.price,
+      })),
+      hold.holdExpiresAt,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdKey, restoreHold]);
 
-  useEffect(() => {
-    function updateTimer() {
-      const expires = new Date(hold.holdExpiresAt).getTime();
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((expires - now) / 1000));
-      setRemainingSeconds(diff);
-
-      if (diff === 0) {
-        clearHold();
-        onReleased?.();
-      }
-    }
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [hold.holdExpiresAt, clearHold, onReleased]);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  const remaining = useCountdown(hold.holdExpiresAt, () => {
+    clearHold();
+    onReleased?.();
+  });
 
   async function handleRelease() {
     setIsReleasing(true);
+    setError(null);
     try {
       await apiFetch(`/api/events/${hold.eventId}/release`, {
         method: 'POST',
-        body: JSON.stringify({
-          seatIds: hold.seats.map((s) => s.seatId || s.id),
-        }),
+        body: JSON.stringify({ seatIds: hold.seats.map((s) => s.seatId || s.id) }),
       });
       clearHold();
       onReleased?.();
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setError(err.message || 'Could not release the seats. Try again.');
     } finally {
       setIsReleasing(false);
     }
   }
 
-  if (remainingSeconds === 0) return null;
+  if (remaining === 0) return null;
+
+  const urgent = remaining !== null && remaining < 60;
+  const seatLabels = hold.seats.map((s) => `${s.row}${s.number}`).join(', ');
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-purple-50/90 shadow-xl backdrop-blur-xl dark:border-indigo-500/40 dark:from-indigo-950/60 dark:via-slate-900/90 dark:to-purple-950/50 p-5">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left: Info */}
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+    <section
+      aria-label="Seats on hold"
+      className="card flex flex-col gap-4 border-l-[3px] border-l-accent p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+    >
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <p className="eyebrow !text-accent">Seats on hold</p>
+          {remaining !== null && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                urgent ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'
+              }`}
+            >
+              <Clock className="h-3 w-3" />
+              {formatClock(remaining)}
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              Active Seat Reservation
-            </span>
-            {remainingSeconds !== null && (
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold ${
-                  remainingSeconds < 60
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                }`}
-              >
-                <Clock className="w-3 h-3" />
-                <span>{formatTime(remainingSeconds)}</span>
-              </span>
-            )}
-          </div>
-
-          <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{hold.eventTitle}</h3>
-
-          <p className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-2">
-            <span>
-              {hold.seats.length} seat{hold.seats.length > 1 ? 's' : ''} locked:
-            </span>
-            <span className="font-semibold text-slate-900 dark:text-white">
-              {hold.seats.map((s) => `Row ${s.row}-${s.number}`).join(', ')}
-            </span>
-            <span>• Total:</span>
-            <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-              {formatINR(hold.totalPrice)}
-            </span>
-          </p>
+          )}
         </div>
-
-        {/* Right: Actions */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <Link
-            href={`/checkout?eventId=${hold.eventId}`}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Proceed to Payment</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-
-          <Link
-            href={`/events/${hold.eventId}`}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-slate-700/80 text-xs font-medium transition-colors"
-          >
-            <span>View Seat Map</span>
-          </Link>
-
-          <button
-            onClick={handleRelease}
-            disabled={isReleasing}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-colors disabled:opacity-50"
-            title="Release held seats"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Release</span>
-          </button>
-        </div>
+        <h3 className="truncate font-display text-lg font-semibold">{hold.eventTitle}</h3>
+        <p className="text-[13px] text-ink-2">
+          {hold.seats.length} seat{hold.seats.length === 1 ? '' : 's'} ({seatLabels}) ·{' '}
+          <span className="font-semibold tabular-nums text-ink">{formatINR(hold.totalPrice)}</span>
+        </p>
+        {error && <p className="text-[13px] text-danger">{error}</p>}
       </div>
-    </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Link href={`/checkout?eventId=${hold.eventId}`} className="btn btn-primary btn-sm">
+          Continue to checkout
+        </Link>
+        <Link href={`/events/${hold.eventId}`} className="btn btn-secondary btn-sm">
+          View seats
+        </Link>
+        <button type="button" onClick={handleRelease} disabled={isReleasing} className="btn btn-ghost btn-sm">
+          {isReleasing ? 'Releasing…' : 'Release'}
+        </button>
+      </div>
+    </section>
   );
 }

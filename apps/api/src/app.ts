@@ -18,6 +18,9 @@ import { redisConnection } from './redis';
 
 export const app = express();
 
+// Behind a hosting proxy; needed for correct client IPs (rate limiting, logs)
+app.set('trust proxy', 1);
+
 app.use(
   cors({
     origin: (origin, callback) => {

@@ -31,4 +31,16 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+if (parsed.data.NODE_ENV === 'production') {
+  const problems: string[] = [];
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    problems.push('JWT_SECRET must be set to a random string of at least 32 characters');
+  }
+  if (!process.env.DATABASE_URL) problems.push('DATABASE_URL must be set');
+  if (problems.length > 0) {
+    console.error(`Refusing to start in production:\n - ${problems.join('\n - ')}`);
+    process.exit(1);
+  }
+}
+
 export const config = parsed.data;

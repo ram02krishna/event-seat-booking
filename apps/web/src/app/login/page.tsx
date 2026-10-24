@@ -1,17 +1,89 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
-import { apiFetch } from '@/lib/api';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { Ticket, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { safeRedirect } from '@/lib/safe-redirect';
 
 type AuthMode = 'login' | 'register' | 'register-otp' | 'forgot' | 'forgot-otp';
+
+const COPY: Record<AuthMode, { title: string; blurb: (email: string) => string }> = {
+  login: { title: 'Welcome back', blurb: () => 'Sign in to see your tickets and hold seats.' },
+  register: { title: 'Create an account', blurb: () => 'You’ll need one to hold seats and receive tickets.' },
+  'register-otp': { title: 'Check your email', blurb: (e) => `We sent a 6-digit code to ${e}.` },
+  forgot: { title: 'Reset your password', blurb: () => 'Enter your email and we’ll send you a code.' },
+  'forgot-otp': { title: 'Choose a new password', blurb: (e) => `Enter the 6-digit code we sent to ${e}.` },
+};
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  minLength,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+  minLength?: number;
+  autoFocus?: boolean;
+}) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div>
+      <label className="field-label">{label}</label>
+      <div className="relative">
+        <input
+          type={shown ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required
+          minLength={minLength}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          className="field pr-11"
+        />
+        <button
+          type="button"
+          onClick={() => setShown((s) => !s)}
+          aria-label={shown ? 'Hide password' : 'Show password'}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-ink-3 hover:text-ink"
+        >
+          {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CodeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="field-label">6-digit code</label>
+      <input
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={6}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+        required
+        autoFocus
+        placeholder="000000"
+        className="field text-center text-2xl font-semibold tracking-[0.5em] tabular-nums"
+      />
+    </div>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/';
+  const redirectTo = safeRedirect(searchParams.get('redirect'));
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -19,524 +91,250 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [otp, setOtp] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [devOtp, setDevOtp] = useState<string | null>(null);
 
+  // Already signed in? Nothing to do here.
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => apiFetch('/api/auth/me'),
+    retry: false,
+  });
+  useEffect(() => {
+    if (me?.user) router.replace(redirectTo);
+  }, [me, redirectTo, router]);
+
   useEffect(() => {
     if (countdown <= 0) return;
-    const interval = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
+    const id = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
   }, [countdown]);
 
-  function switchMode(newMode: AuthMode) {
-    setMode(newMode);
+  function switchMode(next: AuthMode) {
+    setMode(next);
     setError(null);
-    setSuccessMessage(null);
+    setInfo(null);
     setOtp('');
     setDevOtp(null);
   }
 
-  // 1. Handle Login
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
+  async function finishSignIn() {
+    // Everything cached so far was fetched as a guest
+    await queryClient.invalidateQueries();
+    router.replace(redirectTo);
+  }
+
+  async function run(fn: () => Promise<void>, fallbackError: string) {
     setIsLoading(true);
     setError(null);
     try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push(redirectTo);
+      await fn();
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || fallbackError);
     } finally {
       setIsLoading(false);
     }
   }
 
-  // 2. Handle Register Step 1: Send OTP
-  async function handleSendRegisterOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await apiFetch('/api/auth/register/send-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setSuccessMessage(res.message || 'Verification code sent to your email.');
-      if (res.devOtp) {
-        setDevOtp(res.devOtp);
-        setOtp(res.devOtp);
-      }
-      setCountdown(30);
-      setMode('register-otp');
-    } catch (err: any) {
-      setError(err.message || 'Could not send verification code.');
-    } finally {
-      setIsLoading(false);
+  const post = (path: string, body: unknown) =>
+    apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+
+  function afterCodeSent(res: any, next: AuthMode | null) {
+    setInfo(res?.message ?? 'A code is on its way.');
+    if (res?.devOtp) {
+      setDevOtp(res.devOtp);
+      setOtp(res.devOtp);
     }
+    setCountdown(30);
+    if (next) setMode(next);
   }
 
-  // 3. Handle Register Step 2: Verify OTP
-  async function handleVerifyRegisterOtp(e: React.FormEvent) {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiFetch('/api/auth/register/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email, otp: otp.trim() }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push(redirectTo);
-    } catch (err: any) {
-      setError(err.message || 'Invalid or expired verification code.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    run(async () => {
+      await post('/api/auth/login', { email, password });
+      await finishSignIn();
+    }, 'Sign-in failed. Check your details and try again.');
+  };
 
-  // 4. Handle Forgot Password Step 1: Send Reset OTP
-  async function handleSendForgotOtp(e: React.FormEvent) {
+  const handleSendRegisterCode = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await apiFetch('/api/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      });
-      setSuccessMessage(res.message || 'Password reset code sent to your email.');
-      if (res.devOtp) {
-        setDevOtp(res.devOtp);
-        setOtp(res.devOtp);
-      }
-      setCountdown(30);
-      setMode('forgot-otp');
-    } catch (err: any) {
-      setError(err.message || 'Could not send reset code.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    run(async () => afterCodeSent(await post('/api/auth/register/send-otp', { email, password }), 'register-otp'), 'Couldn’t send the code.');
+  };
 
-  // 5. Handle Forgot Password Step 2: Verify OTP & Reset Password
-  async function handleResetPassword(e: React.FormEvent) {
+  const handleVerifyRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiFetch('/api/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          otp: otp.trim(),
-          newPassword,
-        }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push(redirectTo);
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset password. Please check the code.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    run(async () => {
+      await post('/api/auth/register/verify-otp', { email, otp: otp.trim() });
+      await finishSignIn();
+    }, 'That code didn’t work.');
+  };
 
-  // Resend OTP helper
-  async function handleResendOtp() {
+  const handleSendForgotCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => afterCodeSent(await post('/api/auth/forgot-password', { email }), 'forgot-otp'), 'Couldn’t send the code.');
+  };
+
+  const handleReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      await post('/api/auth/reset-password', { email, otp: otp.trim(), newPassword });
+      await finishSignIn();
+    }, 'Couldn’t reset the password.');
+  };
+
+  const handleResend = () => {
     if (countdown > 0) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      let res;
-      if (mode === 'register-otp') {
-        res = await apiFetch('/api/auth/register/send-otp', {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        });
-      } else if (mode === 'forgot-otp') {
-        res = await apiFetch('/api/auth/forgot-password', {
-          method: 'POST',
-          body: JSON.stringify({ email }),
-        });
-      }
-      if (res?.devOtp) {
-        setDevOtp(res.devOtp);
-        setOtp(res.devOtp);
-      }
-      setSuccessMessage(res?.message || 'A fresh verification code has been sent to your email.');
-      setCountdown(30);
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend code.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    run(async () => {
+      if (mode === 'register-otp') afterCodeSent(await post('/api/auth/register/send-otp', { email, password }), null);
+      else afterCodeSent(await post('/api/auth/forgot-password', { email }), null);
+    }, 'Couldn’t resend the code.');
+  };
+
+  const emailField = (autoFocus = false) => (
+    <div>
+      <label className="field-label">Email</label>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        autoFocus={autoFocus}
+        autoComplete="email"
+        className="field"
+      />
+    </div>
+  );
+
+  const resendRow = (
+    <div className="flex items-center justify-between text-[13px]">
+      <button
+        type="button"
+        onClick={() => switchMode(mode === 'register-otp' ? 'register' : 'login')}
+        className="inline-flex items-center gap-1 text-ink-3 hover:text-ink"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {mode === 'register-otp' ? 'Change email' : 'Back to sign in'}
+      </button>
+      <button
+        type="button"
+        disabled={countdown > 0 || isLoading}
+        onClick={handleResend}
+        className="font-medium text-accent hover:underline disabled:text-ink-3 disabled:no-underline"
+      >
+        {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
+      </button>
+    </div>
+  );
+
+  const devHint = devOtp && (
+    <p className="notice notice-warn justify-between">
+      <span>
+        Dev mode code: <strong className="tabular-nums">{devOtp}</strong>
+      </span>
+      <button type="button" className="font-semibold underline" onClick={() => setOtp(devOtp)}>
+        Fill
+      </button>
+    </p>
+  );
 
   return (
-    <main className="max-w-sm mx-auto px-4 py-16 space-y-6">
-      {/* Brand Icon & Heading */}
-      <div className="text-center space-y-1">
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-600/30">
-          <Ticket className="w-5 h-5 text-white" />
-        </div>
-        <h1 className="text-xl font-bold text-white tracking-tight">
-          {mode === 'login' && 'Welcome back'}
-          {mode === 'register' && 'Create your account'}
-          {mode === 'register-otp' && 'Verify your email'}
-          {mode === 'forgot' && 'Reset your password'}
-          {mode === 'forgot-otp' && 'Choose new password'}
-        </h1>
-        <p className="text-sm text-slate-400">
-          {mode === 'login' && 'Sign in to access your tickets and bookings.'}
-          {mode === 'register' && 'Register to hold and book live event seats.'}
-          {mode === 'register-otp' && `Enter the 6-digit code sent to ${email}`}
-          {mode === 'forgot' && "Enter your email to receive a password reset code."}
-          {mode === 'forgot-otp' && `Enter the 6-digit code sent to ${email}`}
-        </p>
+    <main className="page max-w-md py-12 sm:py-20">
+      <div className="mb-8 space-y-2 text-center">
+        <h1 className="font-display text-4xl font-semibold tracking-tight">{COPY[mode].title}</h1>
+        <p className="text-[15px] text-ink-2">{COPY[mode].blurb(email)}</p>
       </div>
 
-      {/* Card */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-800/30 p-6 space-y-5">
-        {/* Tab switcher for Login / Register */}
+      <div className="card space-y-5 p-6 sm:p-7">
         {(mode === 'login' || mode === 'register') && (
-          <div className="grid grid-cols-2 p-1 rounded-xl bg-slate-900 border border-slate-800 gap-1">
-            <button
-              type="button"
-              onClick={() => switchMode('login')}
-              className={`py-2 rounded-lg text-sm font-medium transition-colors ${
-                mode === 'login' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('register')}
-              className={`py-2 rounded-lg text-sm font-medium transition-colors ${
-                mode === 'register' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Register
-            </button>
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1" role="tablist">
+            {(['login', 'register'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => switchMode(m)}
+                className={`rounded-md py-2 text-sm font-semibold transition ${
+                  mode === m ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'
+                }`}
+              >
+                {m === 'login' ? 'Sign in' : 'Register'}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Success message banner */}
-        {successMessage && (
-          <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3.5 py-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {/* Error message banner */}
+        {info && <p className="notice notice-ok">{info}</p>}
         {error && (
-          <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3.5 py-2.5">
+          <p role="alert" className="notice notice-error">
             {error}
           </p>
         )}
 
-        {/* VIEW 1: LOGIN */}
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-medium text-slate-400">Password</label>
-                <button
-                  type="button"
-                  onClick={() => switchMode('forgot')}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  Forgot password?
-                </button>
-              </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {emailField(true)}
+            <div className="space-y-1.5">
+              <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
+              <div className="text-right">
+                <button type="button" onClick={() => switchMode('forgot')} className="text-[13px] text-ink-3 hover:text-accent">
+                  Forgot your password?
                 </button>
               </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-md shadow-indigo-600/20"
-            >
-              {isLoading ? 'Signing In...' : 'Sign In'}
+            <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
+              {isLoading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
         )}
 
-        {/* VIEW 2: REGISTER (STEP 1) */}
         {mode === 'register' && (
-          <form onSubmit={handleSendRegisterOtp} className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Password (min. 6 characters)</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-md shadow-indigo-600/20"
-            >
-              {isLoading ? 'Sending Code...' : 'Continue to Verification'}
+          <form onSubmit={handleSendRegisterCode} className="space-y-4">
+            {emailField(true)}
+            <PasswordField label="Password (6+ characters)" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+            <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
+              {isLoading ? 'Sending code…' : 'Email me a code'}
             </button>
           </form>
         )}
 
-        {/* VIEW 3: REGISTER OTP (STEP 2) */}
         {mode === 'register-otp' && (
-          <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
-            {devOtp && (
-              <div className="flex items-center justify-between p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-                <span className="truncate">
-                  Dev Code: <strong className="font-mono text-sm tracking-wider text-amber-200">{devOtp}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setOtp(devOtp)}
-                  className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold"
-                >
-                  Fill Code
-                </button>
-              </div>
-            )}
-
-            <div className="space-y-1 text-center">
-              <label className="block text-xs font-medium text-slate-400">
-                6-Digit Verification Code
-              </label>
-              <input
-                type="text"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                required
-                autoFocus
-                placeholder="123456"
-                className="w-full text-center font-mono text-2xl tracking-[0.4em] py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || otp.length !== 6}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-md shadow-indigo-600/20"
-            >
-              {isLoading ? 'Verifying...' : 'Verify & Create Account'}
+          <form onSubmit={handleVerifyRegister} className="space-y-4">
+            {devHint}
+            <CodeField value={otp} onChange={setOtp} />
+            <button type="submit" disabled={isLoading || otp.length !== 6} className="btn btn-primary w-full">
+              {isLoading ? 'Verifying…' : 'Create account'}
             </button>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <button
-                type="button"
-                onClick={() => switchMode('register')}
-                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                Change email
-              </button>
-
-              <button
-                type="button"
-                disabled={countdown > 0 || isLoading}
-                onClick={handleResendOtp}
-                className="text-indigo-400 hover:text-indigo-300 disabled:text-slate-500 transition-colors"
-              >
-                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
-              </button>
-            </div>
+            {resendRow}
           </form>
         )}
 
-        {/* VIEW 4: FORGOT PASSWORD (STEP 1) */}
         {mode === 'forgot' && (
-          <form onSubmit={handleSendForgotOtp} className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Account Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-                placeholder="you@example.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-md shadow-indigo-600/20"
-            >
-              {isLoading ? 'Sending Code...' : 'Send Reset Code'}
+          <form onSubmit={handleSendForgotCode} className="space-y-4">
+            {emailField(true)}
+            <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
+              {isLoading ? 'Sending code…' : 'Send reset code'}
             </button>
-
-            <button
-              type="button"
-              onClick={() => switchMode('login')}
-              className="w-full text-center text-xs text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 pt-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to Sign In
+            <button type="button" onClick={() => switchMode('login')} className="inline-flex w-full items-center justify-center gap-1 text-[13px] text-ink-3 hover:text-ink">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to sign in
             </button>
           </form>
         )}
 
-        {/* VIEW 5: FORGOT PASSWORD OTP & NEW PASSWORD (STEP 2) */}
         {mode === 'forgot-otp' && (
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            {devOtp && (
-              <div className="flex items-center justify-between p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-                <span className="truncate">
-                  Dev Code: <strong className="font-mono text-sm tracking-wider text-amber-200">{devOtp}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setOtp(devOtp)}
-                  className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold"
-                >
-                  Fill Code
-                </button>
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400 text-center">
-                6-Digit Reset Code
-              </label>
-              <input
-                type="text"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                required
-                autoFocus
-                placeholder="123456"
-                className="w-full text-center font-mono text-xl tracking-[0.3em] py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">New Password (min. 6 characters)</label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                  title={showNewPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
-                >
-                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || otp.length !== 6 || newPassword.length < 6}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition-colors shadow-md shadow-indigo-600/20"
-            >
-              {isLoading ? 'Resetting Password...' : 'Reset Password & Sign In'}
+          <form onSubmit={handleReset} className="space-y-4">
+            {devHint}
+            <CodeField value={otp} onChange={setOtp} />
+            <PasswordField label="New password (6+ characters)" value={newPassword} onChange={setNewPassword} autoComplete="new-password" minLength={6} />
+            <button type="submit" disabled={isLoading || otp.length !== 6 || newPassword.length < 6} className="btn btn-primary w-full">
+              {isLoading ? 'Saving…' : 'Set new password'}
             </button>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                Back to Sign In
-              </button>
-
-              <button
-                type="button"
-                disabled={countdown > 0 || isLoading}
-                onClick={handleResendOtp}
-                className="text-indigo-400 hover:text-indigo-300 disabled:text-slate-500 transition-colors"
-              >
-                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
-              </button>
-            </div>
+            {resendRow}
           </form>
         )}
       </div>
@@ -548,8 +346,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="max-w-sm mx-auto px-4 py-16 text-center text-slate-400 text-sm">
-          Loading sign in...
+        <main className="page max-w-md py-20" aria-busy="true">
+          <div className="skeleton h-80" />
         </main>
       }
     >
@@ -557,5 +355,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-
-

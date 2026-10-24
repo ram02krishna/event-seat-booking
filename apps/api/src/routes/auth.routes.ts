@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db';
@@ -15,6 +16,7 @@ import { config } from '../config';
 import { Role } from '@prisma/client';
 import { redisConnection } from '../redis';
 import { sendOtpEmail } from '../services/email.service';
+import { rateLimit } from '../middleware/rateLimit';
 
 export const authRouter = Router();
 
@@ -27,13 +29,43 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
+// Cryptographically secure 6-digit code (Math.random is predictable)
 function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
+
+const MAX_OTP_ATTEMPTS = 5;
+
+function codesMatch(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+/**
+ * Count a wrong guess against a code. After MAX_OTP_ATTEMPTS the code is destroyed, so a
+ * 6-digit code can't be brute-forced inside its 10 minute lifetime.
+ */
+async function registerFailedAttempt(codeKey: string): Promise<void> {
+  const attemptsKey = `${codeKey}:attempts`;
+  const attempts = await redisConnection.incr(attemptsKey);
+  if (attempts === 1) await redisConnection.expire(attemptsKey, 600);
+  if (attempts >= MAX_OTP_ATTEMPTS) {
+    await redisConnection.del(codeKey, attemptsKey);
+  }
+}
+
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
+const codeSendLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 8, message: 'Too many codes requested. Try again in a few minutes.' });
+// Reads (/me) and logout are called constantly by the UI; only throttle the credential-handling routes
+authRouter.use((req, res, next) =>
+  req.method === 'GET' || req.path === '/logout' ? next() : authLimiter(req, res, next),
+);
 
 // 1. Send OTP for Registration
 authRouter.post(
   '/register/send-otp',
+  codeSendLimiter,
   validateBody(SendOtpRegisterSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -112,7 +144,8 @@ authRouter.post(
       }
 
       const { otp: storedOtp, passwordHash } = JSON.parse(cachedData);
-      if (storedOtp !== otp) {
+      if (!codesMatch(storedOtp, otp)) {
+        await registerFailedAttempt(`reg_otp:${email}`);
         return next(new AppError(400, 'Invalid verification code. Please check and try again.'));
       }
 
@@ -156,6 +189,7 @@ authRouter.post(
 // 3. Forgot Password - Send OTP
 authRouter.post(
   '/forgot-password',
+  codeSendLimiter,
   validateBody(ForgotPasswordSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -163,7 +197,11 @@ authRouter.post(
 
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
-        return next(new AppError(404, 'No account found with this email address.'));
+        // Same response as success, so this endpoint can't be used to discover who has an account
+        return res.status(200).json({
+          message: 'If an account exists for that email, a reset code is on its way.',
+          email,
+        });
       }
 
       const otp = generateOtp();
@@ -230,7 +268,8 @@ authRouter.post(
       }
 
       const { otp: storedOtp } = JSON.parse(cached);
-      if (storedOtp !== otp) {
+      if (!codesMatch(storedOtp, otp)) {
+        await registerFailedAttempt(`pwd_reset:${email}`);
         return next(new AppError(400, 'Invalid verification code. Please check and try again.'));
       }
 

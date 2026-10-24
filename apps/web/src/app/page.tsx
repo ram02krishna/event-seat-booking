@@ -1,236 +1,227 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, ArrowRight, Users, RefreshCw } from 'lucide-react';
-import { formatINR, formatEventDate, formatEventTime } from '@/lib/format';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, MapPin, RefreshCw } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { formatINR } from '@/lib/format';
 import { ActiveHoldBanner, ActiveHoldInfo } from '@/components/ActiveHoldBanner';
-import { VenueBadge } from '@/components/venue-badge';
+import { VenueBadge, VENUE_LABELS, normalizeVenueType, VenueTypeKey } from '@/components/venue-badge';
 
 interface EventItem {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   startsAt: string;
   status: string;
-  venue: { id: string; name: string; layout?: any };
+  venue: { id: string; name: string; layout?: { type?: string } };
   totalSeats: number;
   availableSeats: number;
   minPrice?: number;
 }
 
-const VENUE_FILTERS = [
-  { label: 'All Venues', value: 'ALL' },
-  { label: '🎬 Dolby Atmos', value: 'THEATER_DOLBY' },
-  { label: '🏢 Conference', value: 'CONFERENCE_HALL' },
-  { label: '🎭 Auditorium', value: 'AUDITORIUM' },
-  { label: '🏟️ Concert Arena', value: 'ARENA' },
-];
+const dayFmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric' });
+const monthFmt = new Intl.DateTimeFormat('en-IN', { month: 'short' });
+const weekdayFmt = new Intl.DateTimeFormat('en-IN', { weekday: 'short' });
+const timeFmt = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+function EventRow({ event, onPrefetch }: { event: EventItem; onPrefetch: (id: string) => void }) {
+  const date = new Date(event.startsAt);
+  const soldOut = event.totalSeats > 0 && event.availableSeats === 0;
+  const left = event.totalSeats > 0 ? event.availableSeats / event.totalSeats : 1;
+  const fillingFast = !soldOut && left <= 0.2;
+  const taken = event.totalSeats > 0 ? 1 - left : 0;
+
+  return (
+    <li>
+      <Link
+        href={`/events/${event.id}`}
+        onMouseEnter={() => onPrefetch(event.id)}
+        onFocus={() => onPrefetch(event.id)}
+        onTouchStart={() => onPrefetch(event.id)}
+        className="group card flex overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift"
+      >
+        {/* Date stub */}
+        <div className="flex w-[84px] shrink-0 flex-col items-center justify-center border-r border-dashed border-line-strong bg-sunken/60 px-2 py-5 text-center sm:w-[104px]">
+          <span className="eyebrow">{weekdayFmt.format(date)}</span>
+          <span className="font-display text-[36px] font-bold leading-none tracking-tight sm:text-[42px]">
+            {dayFmt.format(date)}
+          </span>
+          <span className="eyebrow mt-1">{monthFmt.format(date)}</span>
+        </div>
+
+        {/* Details */}
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+          <div className="min-w-0 space-y-2">
+            <VenueBadge type={event.venue?.layout?.type} />
+            <h2 className="font-display text-[21px] font-bold leading-snug tracking-tight sm:text-2xl">
+              {event.title}
+            </h2>
+            {event.description && (
+              <p className="line-clamp-2 max-w-xl text-sm text-ink-2">{event.description}</p>
+            )}
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {event.venue.name}
+              </span>
+              <span>{timeFmt.format(date).toUpperCase()}</span>
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-end justify-between gap-6 sm:w-48 sm:flex-col sm:items-end sm:justify-center sm:gap-3">
+            <div className="sm:text-right">
+              {event.minPrice && event.minPrice > 0 ? (
+                <>
+                  <p className="eyebrow">From</p>
+                  <p className="text-xl font-semibold tabular-nums">{formatINR(event.minPrice)}</p>
+                </>
+              ) : (
+                <p className="eyebrow">Pricing on selection</p>
+              )}
+            </div>
+
+            <div className="w-full max-w-[11rem] space-y-1.5 sm:max-w-none">
+              <div className="h-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${fillingFast || soldOut ? 'bg-warn' : 'bg-accent'}`}
+                  style={{ width: `${Math.round(taken * 100)}%` }}
+                />
+              </div>
+              <p className={`text-xs sm:text-right ${fillingFast ? 'font-medium text-warn' : 'text-ink-3'}`}>
+                {soldOut
+                  ? 'Sold out'
+                  : fillingFast
+                    ? `Selling fast · ${event.availableSeats} left`
+                    : `${event.availableSeats} seats left`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden items-center pr-5 text-ink-3 transition group-hover:translate-x-0.5 group-hover:text-accent md:flex">
+          <ArrowRight className="h-5 w-5" />
+        </div>
+      </Link>
+    </li>
+  );
+}
 
 export default function HomePage() {
   const queryClient = useQueryClient();
-  const [selectedVenueFilter, setSelectedVenueFilter] = useState<string>('ALL');
+  const [venueFilter, setVenueFilter] = useState<'ALL' | VenueTypeKey>('ALL');
 
-  const { data, isLoading, isError, refetch } = useQuery<{ events: EventItem[] }>({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<{ events: EventItem[] }>({
     queryKey: ['events'],
     queryFn: () => apiFetch('/api/events'),
   });
 
-  const handlePrefetch = (eventId: string) => {
+  const { data: holdData, refetch: refetchHold } = useQuery<{ hold: ActiveHoldInfo | null }>({
+    queryKey: ['active-hold'],
+    queryFn: () => apiFetch('/api/events/active-hold'),
+    refetchInterval: 15000,
+  });
+
+  const events = data?.events ?? [];
+
+  // Offer only the filters that would actually show something
+  const filters = useMemo(() => {
+    const counts = new Map<VenueTypeKey, number>();
+    for (const e of events) {
+      const key = normalizeVenueType(e.venue?.layout?.type);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries());
+  }, [events]);
+
+  const visible =
+    venueFilter === 'ALL'
+      ? events
+      : events.filter((e) => normalizeVenueType(e.venue?.layout?.type) === venueFilter);
+
+  function prefetch(eventId: string) {
     queryClient.prefetchQuery({
       queryKey: ['events', eventId, 'seats'],
       queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
       staleTime: 30000,
     });
-  };
-
-  const { data: holdData, refetch: refetchHold } = useQuery<{ hold: ActiveHoldInfo | null }>({
-    queryKey: ['active-hold'],
-    queryFn: () => apiFetch('/api/events/active-hold'),
-    refetchInterval: 5000,
-  });
-
-  const events = data?.events || [];
-  const filteredEvents =
-    selectedVenueFilter === 'ALL'
-      ? events
-      : events.filter((e) => e.venue?.layout?.type === selectedVenueFilter);
+  }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      {/* Active hold banner if user has seats on hold */}
-      {holdData?.hold && (
-        <ActiveHoldBanner hold={holdData.hold} onReleased={() => refetchHold()} />
-      )}
+    <main className="page max-w-5xl space-y-8 py-10 sm:py-14">
+      {holdData?.hold && <ActiveHoldBanner hold={holdData.hold} onReleased={() => refetchHold()} />}
 
-      {/* Header and Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Upcoming Events
+          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+            Upcoming events
           </h1>
-          <p className="text-sm text-slate-400">
-            Browse events and reserve your seats in real time.
+          <p className="max-w-md text-[15px] text-ink-2">
+            Choose your own seats from the live map. Seats you pick are held for five minutes while you check out.
           </p>
         </div>
 
-        {/* Venue Layout Filter Tabs */}
-        {events.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {VENUE_FILTERS.map((filter) => {
-              const isActive = selectedVenueFilter === filter.value;
-              return (
+        {filters.length > 1 && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by venue type">
+            {[['ALL', 'All'] as const, ...filters.map(([k]) => [k, VENUE_LABELS[k]] as const)].map(
+              ([value, label]) => (
                 <button
-                  key={filter.value}
-                  onClick={() => setSelectedVenueFilter(filter.value)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800/80'
+                  key={value}
+                  type="button"
+                  aria-pressed={venueFilter === value}
+                  onClick={() => setVenueFilter(value as 'ALL' | VenueTypeKey)}
+                  className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    venueFilter === value
+                      ? 'border-ink bg-ink text-bg'
+                      : 'border-line-strong text-ink-2 hover:border-ink-3 hover:text-ink'
                   }`}
                 >
-                  {filter.label}
+                  {label}
                 </button>
-              );
-            })}
+              ),
+            )}
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Events */}
       {isLoading ? (
-        <div className="space-y-4">
-          {[1, 2].map((n) => (
-            <div
-              key={n}
-              className="h-40 rounded-2xl bg-slate-800/40 border border-slate-800 animate-pulse"
-            />
+        <div className="space-y-3" aria-busy="true" aria-label="Loading events">
+          {[0, 1, 2].map((n) => (
+            <div key={n} className="skeleton h-36" />
           ))}
         </div>
       ) : isError ? (
-        <div className="p-6 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 text-center space-y-3">
-          <p className="text-indigo-300 text-sm font-medium">Could not load events yet.</p>
-          <p className="text-slate-400 text-xs max-w-md mx-auto">
-            If the backend is waking up from Render&apos;s free tier sleep, cold boot takes about 30–60 seconds.
+        <div className="card space-y-3 p-8 text-center">
+          <p className="font-display text-xl font-semibold">We couldn’t load events</p>
+          <p className="mx-auto max-w-sm text-sm text-ink-2">
+            The server may still be starting up. Give it a moment and try again.
           </p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Retry Loading Events
+          <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary btn-sm">
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Try again
           </button>
         </div>
-      ) : filteredEvents.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
-          <p className="text-slate-300 text-sm font-semibold">
-            {events.length === 0
-              ? 'No upcoming events scheduled right now.'
-              : 'No events found for this venue category.'}
+      ) : visible.length === 0 ? (
+        <div className="card space-y-2 p-10 text-center">
+          <p className="font-display text-xl font-semibold">
+            {events.length === 0 ? 'Nothing scheduled yet' : 'No events match that filter'}
           </p>
-          <p className="text-slate-500 text-xs max-w-sm mx-auto">
-            {events.length === 0
-              ? 'Check back soon for new theatre plays, concerts, cinema screenings, and live seated performances.'
-              : 'Try selecting "All Venues" to view all live seated events.'}
+          <p className="text-sm text-ink-2">
+            {events.length === 0 ? 'New events show up here as soon as they are published.' : 'Try another venue type.'}
           </p>
-          {events.length === 0 ? (
-            <Link
-              href="/login"
-              className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
-            >
-              Organizer Sign In
-            </Link>
-          ) : (
-            <button
-              onClick={() => setSelectedVenueFilter('ALL')}
-              className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
-            >
-              Show All Venues
+          {events.length > 0 && (
+            <button type="button" onClick={() => setVenueFilter('ALL')} className="btn btn-secondary btn-sm mt-2">
+              Show all events
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredEvents.map((event) => {
-            const eventDate = formatEventDate(event.startsAt);
-            const eventTime = formatEventTime(event.startsAt);
-
-            const booked = event.totalSeats > 0
-              ? Math.round(((event.totalSeats - event.availableSeats) / event.totalSeats) * 100)
-              : 0;
-
-            return (
-              <div
-                key={event.id}
-                onMouseEnter={() => handlePrefetch(event.id)}
-                onTouchStart={() => handlePrefetch(event.id)}
-                className="group flex flex-col sm:flex-row sm:items-center gap-6 p-6 rounded-2xl bg-slate-800/30 hover:bg-slate-800/50 border border-slate-800 hover:border-slate-700 transition-all"
-              >
-                {/* Main Info */}
-                <div className="flex-1 min-w-0 space-y-3">
-                  <div>
-                    {event.venue?.layout?.type && (
-                      <div className="mb-2">
-                        <VenueBadge type={event.venue.layout.type} size="sm" />
-                      </div>
-                    )}
-                    <h2 className="text-base font-semibold text-white truncate">{event.title}</h2>
-                    <p className="text-sm text-slate-400 line-clamp-1 mt-0.5">
-                      {event.description || 'Live seated event with real-time availability.'}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {eventDate} &bull; {eventTime}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {event.venue.name}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" />
-                      {event.availableSeats} seats left
-                    </span>
-                  </div>
-
-                  {/* Capacity bar */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-1 rounded-full bg-slate-700 overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-500 rounded-full transition-all"
-                        style={{ width: `${booked}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] text-slate-500 tabular-nums w-8 text-right">{booked}%</span>
-                  </div>
-                </div>
-
-                {/* Right: Price + CTA */}
-                <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2 shrink-0">
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500 block">From</span>
-                    <span className="text-lg font-bold text-white font-mono">
-                      {formatINR(event.minPrice && event.minPrice > 0 ? event.minPrice : 75000)}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/events/${event.id}`}
-                    onMouseEnter={() => handlePrefetch(event.id)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors whitespace-nowrap"
-                  >
-                    Select Seats
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ul className="space-y-3">
+          {visible.map((event) => (
+            <EventRow key={event.id} event={event} onPrefetch={prefetch} />
+          ))}
+        </ul>
       )}
     </main>
   );

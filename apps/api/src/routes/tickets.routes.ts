@@ -56,6 +56,10 @@ ticketsRouter.post(
         return next(new AppError(404, 'Invalid ticket: QR code or token not recognized'));
       }
 
+      if (ticket.eventSeat.event.status === 'CANCELLED') {
+        return next(new AppError(400, 'This event has been cancelled'));
+      }
+
       // 2. Immediate check if already used
       if (ticket.checkedInAt) {
         return res.status(409).json({

@@ -68,6 +68,15 @@ export async function finalizeOrder(orderId: string, seatIds?: string[]) {
       throw new AppError(400, 'No active held seats found to confirm');
     }
 
+    // The order total was priced for exactly the seats requested. If any hold lapsed in the
+    // meantime, fail the whole order rather than quietly issuing fewer tickets for the same price.
+    if (seatIds && seatIds.length > 0) {
+      const requested = new Set(seatIds).size;
+      if (heldSeats.length !== requested) {
+        throw new AppError(409, 'One or more seat holds expired before confirmation');
+      }
+    }
+
     // Mark seats SOLD
     const updateResult = await tx.eventSeat.updateMany({
       where: {
@@ -188,9 +197,25 @@ export async function createAndConfirmBooking(params: {
     });
 
     if (existingOrder) {
+      // A key is only a replay for the user who created it. Without this check anyone who learned
+      // or guessed a key could read another customer's order and QR codes.
+      if (existingOrder.userId !== userId || existingOrder.eventId !== eventId) {
+        throw new AppError(409, 'This request was already used. Please try again.');
+      }
+      if (existingOrder.status === 'CANCELLED') {
+        throw new AppError(409, 'This booking attempt failed earlier. Please try again.');
+      }
       logger.info(`Idempotent order replay for key ${idempotencyKey}`);
       return finalizeOrder(existingOrder.id, uniqueSeatIds);
     }
+  }
+
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { status: true, startsAt: true } });
+  if (!event || event.status !== 'PUBLISHED') {
+    throw new AppError(404, 'Event not found or not open for booking');
+  }
+  if (event.startsAt.getTime() <= Date.now()) {
+    throw new AppError(400, 'This event has already started');
   }
 
   // 2. Verify seats are currently HELD by this user
@@ -224,6 +249,14 @@ export async function createAndConfirmBooking(params: {
     },
   });
 
-  // 4. Finalize order (mark SOLD + create tickets)
-  return finalizeOrder(order.id, seatIds);
+  // 4. Finalize order (mark SOLD + create tickets). If it can't be completed, close the order so
+  //    failed attempts don't pile up as PENDING rows (and the idempotency key can't be replayed).
+  try {
+    return await finalizeOrder(order.id, uniqueSeatIds);
+  } catch (err) {
+    await prisma.order
+      .updateMany({ where: { id: order.id, status: 'PENDING' }, data: { status: 'CANCELLED' } })
+      .catch((cleanupErr) => logger.error(cleanupErr, 'Failed to cancel unfinished order'));
+    throw err;
+  }
 }

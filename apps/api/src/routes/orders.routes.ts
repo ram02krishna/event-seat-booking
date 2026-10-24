@@ -35,14 +35,25 @@ ordersRouter.post(
   }
 );
 
+// Bounded so a long-running process can't accumulate one entry per ticket ever viewed
+const QR_CACHE_MAX = 500;
 const qrCache = new Map<string, string>();
 
 async function getOrGenerateQrDataUrl(qrToken: string): Promise<string> {
   const cached = qrCache.get(qrToken);
-  if (cached) return cached;
+  if (cached) {
+    // refresh recency
+    qrCache.delete(qrToken);
+    qrCache.set(qrToken, cached);
+    return cached;
+  }
 
   const dataUrl = await qrcode.toDataURL(qrToken, { width: 220, margin: 1 });
   qrCache.set(qrToken, dataUrl);
+  if (qrCache.size > QR_CACHE_MAX) {
+    const oldest = qrCache.keys().next().value;
+    if (oldest !== undefined) qrCache.delete(oldest);
+  }
   return dataUrl;
 }
 

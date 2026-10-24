@@ -250,23 +250,30 @@ organizerRouter.get('/stats', async (_req: Request, res: Response, next: NextFun
     const overallOccupancyRate = totalSeats > 0 ? Math.round((totalTicketsSold / totalSeats) * 100) : 0;
 
     const events = await prisma.event.findMany({
-      include: {
-        venue: { select: { name: true, layout: true } },
-        eventSeats: {
-          select: { status: true, price: true },
-        },
-      },
+      include: { venue: { select: { name: true, layout: true } } },
       orderBy: { startsAt: 'asc' },
     });
 
+    // Aggregate in SQL instead of loading every seat of every event.
+    // Lapsed-but-unswept holds are open seats, not held ones.
+    const seatStats = await prisma.$queryRaw<
+      Array<{ eventId: string; total: bigint; sold: bigint; held: bigint; revenue: bigint | null }>
+    >`
+      SELECT "eventId",
+             COUNT(*) AS total,
+             COUNT(*) FILTER (WHERE status = 'SOLD'::"SeatStatus") AS sold,
+             COUNT(*) FILTER (WHERE status = 'HELD'::"SeatStatus" AND "holdExpiresAt" >= NOW()) AS held,
+             SUM(price) FILTER (WHERE status = 'SOLD'::"SeatStatus") AS revenue
+      FROM "EventSeat"
+      GROUP BY "eventId"
+    `;
+    const statsByEvent = new Map(seatStats.map((r) => [r.eventId, r]));
+
     const eventStats = events.map((ev) => {
-      const total = ev.eventSeats.length;
-      const sold = ev.eventSeats.filter((s) => s.status === SeatStatus.SOLD).length;
-      const held = ev.eventSeats.filter((s) => s.status === SeatStatus.HELD).length;
-      const available = ev.eventSeats.filter((s) => s.status === SeatStatus.AVAILABLE).length;
-      const revenueCents = ev.eventSeats
-        .filter((s) => s.status === SeatStatus.SOLD)
-        .reduce((sum, s) => sum + s.price, 0);
+      const st = statsByEvent.get(ev.id);
+      const total = Number(st?.total ?? 0);
+      const sold = Number(st?.sold ?? 0);
+      const held = Number(st?.held ?? 0);
       const occupancyRate = total > 0 ? Math.round((sold / total) * 100) : 0;
 
       return {
@@ -278,9 +285,9 @@ organizerRouter.get('/stats', async (_req: Request, res: Response, next: NextFun
         totalSeats: total,
         soldSeats: sold,
         heldSeats: held,
-        availableSeats: available,
+        availableSeats: total - sold - held,
         occupancyRate,
-        revenueCents,
+        revenueCents: Number(st?.revenue ?? 0),
       };
     });
 
@@ -342,8 +349,11 @@ organizerRouter.get('/events/:id/stats', async (req: Request, res: Response, nex
 
     const totalSeats = event.eventSeats.length;
     const sold = event.eventSeats.filter((s) => s.status === SeatStatus.SOLD).length;
-    const held = event.eventSeats.filter((s) => s.status === SeatStatus.HELD).length;
-    const available = event.eventSeats.filter((s) => s.status === SeatStatus.AVAILABLE).length;
+    const nowMs = Date.now();
+    const isLiveHold = (es: { status: SeatStatus; holdExpiresAt: Date | null }) =>
+      es.status === SeatStatus.HELD && !!es.holdExpiresAt && es.holdExpiresAt.getTime() >= nowMs;
+    const held = event.eventSeats.filter(isLiveHold).length;
+    const available = totalSeats - sold - held;
     const revenueCents = event.eventSeats
       .filter((s) => s.status === SeatStatus.SOLD)
       .reduce((sum, s) => sum + s.price, 0);
@@ -373,7 +383,7 @@ organizerRouter.get('/events/:id/stats', async (req: Request, res: Response, nex
       if (es.status === SeatStatus.SOLD) {
         item.sold += 1;
         item.revenue += es.price;
-      } else if (es.status === SeatStatus.HELD) {
+      } else if (isLiveHold(es)) {
         item.held += 1;
       } else {
         item.available += 1;
@@ -459,7 +469,9 @@ organizerRouter.post(
   validateBody(CreateStaffSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { email, password } = req.body;
+      // Login looks accounts up by lowercased email, so store it that way or the account can never sign in
+      const email = String(req.body.email).trim().toLowerCase();
+      const { password } = req.body;
 
       const existing = await prisma.user.findUnique({
         where: { email },

@@ -1,23 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import {
-  ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Scan,
-  RefreshCw,
-  Camera,
-  Search,
-} from 'lucide-react';
-import Link from 'next/link';
+import { AlertTriangle, Camera, CheckCircle2, Keyboard, XCircle } from 'lucide-react';
+import { apiFetch, ApiError } from '@/lib/api';
+
+type ScanStatus = 'SUCCESS' | 'ALREADY_USED' | 'INVALID';
 
 interface ScanResult {
-  status: 'SUCCESS' | 'ALREADY_USED' | 'INVALID';
+  status: ScanStatus;
   message: string;
   checkedInAt?: string;
   attendee?: {
@@ -29,303 +22,254 @@ interface ScanResult {
   };
 }
 
+const RESULT_STYLE: Record<ScanStatus, { box: string; icon: React.ReactNode; title: string }> = {
+  SUCCESS: {
+    box: 'border-ok/40 bg-ok-soft',
+    icon: <CheckCircle2 className="h-7 w-7 text-ok" />,
+    title: 'Let them in',
+  },
+  ALREADY_USED: {
+    box: 'border-warn/40 bg-warn-soft',
+    icon: <AlertTriangle className="h-7 w-7 text-warn" />,
+    title: 'Already scanned',
+  },
+  INVALID: {
+    box: 'border-danger/40 bg-danger-soft',
+    icon: <XCircle className="h-7 w-7 text-danger" />,
+    title: 'Not valid',
+  },
+};
+
+function beep(kind: 'ok' | 'bad') {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t = ctx.currentTime;
+    if (kind === 'ok') {
+      osc.frequency.setValueAtTime(660, t);
+      osc.frequency.setValueAtTime(880, t + 0.09);
+    } else {
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.setValueAtTime(165, t + 0.14);
+    }
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.32);
+    osc.start();
+    osc.stop(t + 0.32);
+    osc.onended = () => ctx.close();
+  } catch {
+    // audio not available; the visual result is enough
+  }
+}
+
 export default function StaffScannerPage() {
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiFetch('/api/auth/me'),
+    retry: false,
   });
-
   const user = authData?.user;
   const isAuthorized = user?.role === 'STAFF' || user?.role === 'ORGANIZER';
 
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [result, setResult] = useState<ScanResult | null>(null);
   const [manualToken, setManualToken] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const lastScan = useRef<{ token: string; at: number } | null>(null);
 
-  // Play audio chime for feedback
-  function playSound(type: 'success' | 'error') {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+  const validate = useCallback(async (raw: string) => {
+    const token = raw.trim();
+    if (!token) return;
 
-      if (type === 'success') {
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } else {
-        osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
-        osc.frequency.setValueAtTime(164.81, ctx.currentTime + 0.15); // E3
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-      }
-    } catch {
-      // AudioContext unavailable
-    }
-  }
+    // Cameras report the same code many times a second; ignore repeats for a few seconds
+    const now = Date.now();
+    if (lastScan.current && lastScan.current.token === token && now - lastScan.current.at < 4000) return;
+    lastScan.current = { token, at: now };
 
-  async function handleValidateToken(token: string) {
-    if (!token.trim() || isProcessing) return;
-    setIsProcessing(true);
-
+    setBusy(true);
     try {
       const res = await apiFetch('/api/tickets/check-in', {
         method: 'POST',
-        body: JSON.stringify({ qrToken: token.trim() }),
+        body: JSON.stringify({ qrToken: token }),
       });
-
-      playSound('success');
-      setScanResult({
-        status: 'SUCCESS',
-        message: 'Valid Ticket - Check-in Approved',
-        checkedInAt: res.checkedInAt,
-        attendee: res.attendee,
-      });
+      beep('ok');
+      setResult({ status: 'SUCCESS', message: 'Check-in recorded', checkedInAt: res.checkedInAt, attendee: res.attendee });
     } catch (err: any) {
-      playSound('error');
-      if (err.message?.includes('already used')) {
-        setScanResult({
+      beep('bad');
+      if (err instanceof ApiError && err.status === 409) {
+        setResult({
           status: 'ALREADY_USED',
-          message: 'Ticket Already Used',
+          message: 'This ticket has already been used.',
           attendee: err.attendee,
           checkedInAt: err.checkedInAt,
         });
       } else {
-        setScanResult({
-          status: 'INVALID',
-          message: err.message || 'Invalid QR code or ticket not found',
-        });
+        setResult({ status: 'INVALID', message: err.message || 'This code isn’t a valid ticket.' });
       }
     } finally {
-      setIsProcessing(false);
+      setBusy(false);
     }
-  }
+  }, []);
 
-  // Initialize camera scanner
+  // Keep the camera callback pointing at the latest validate without rebuilding the scanner
+  const validateRef = useRef(validate);
+  validateRef.current = validate;
+
   useEffect(() => {
-    if (!isAuthorized || !isCameraActive) return;
+    if (!isAuthorized || !cameraOn) return;
 
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-      },
-      false
-    );
-
-    scannerRef.current = scanner;
-
+    const scanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 240, height: 240 } }, false);
     scanner.render(
-      (decodedText) => {
-        handleValidateToken(decodedText);
-        setIsCameraActive(false);
+      (text) => {
+        validateRef.current(text);
+        setCameraOn(false);
       },
       () => {
-        // scan errors ignored
-      }
+        // frames without a readable code are expected
+      },
     );
-
     return () => {
       scanner.clear().catch(() => {});
     };
-  }, [isAuthorized, isCameraActive]);
+  }, [isAuthorized, cameraOn]);
+
+  function next() {
+    setResult(null);
+    setManualToken('');
+    lastScan.current = null;
+  }
 
   if (authLoading) {
     return (
-      <main className="max-w-md mx-auto px-4 py-20 text-center animate-pulse space-y-4">
-        <div className="h-10 bg-slate-900 rounded-xl" />
-        <div className="h-40 bg-slate-900 rounded-2xl" />
+      <main className="page max-w-lg py-16" aria-busy="true">
+        <div className="skeleton h-64" />
       </main>
     );
   }
 
   if (!isAuthorized) {
     return (
-      <main className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <ShieldCheck className="w-12 h-12 text-amber-500 mx-auto" />
-        <h2 className="text-xl font-bold text-white">Staff Access Required</h2>
-        <p className="text-xs text-slate-400">
-          This portal is reserved for venue staff and organizers to check in attendees.
+      <main className="page max-w-md space-y-4 py-24 text-center">
+        <h1 className="font-display text-3xl font-semibold">Staff only</h1>
+        <p className="text-sm text-ink-2">
+          Ticket check-in is limited to venue staff and organizers. Sign in with a staff account to continue.
         </p>
-        <Link
-          href="/login"
-          className="inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
-        >
-          Sign in as Staff
+        <Link href="/login?redirect=/staff/scanner" className="btn btn-primary btn-sm">
+          Sign in
         </Link>
       </main>
     );
   }
 
+  const style = result ? RESULT_STYLE[result.status] : null;
+
   return (
-    <main className="max-w-xl mx-auto px-4 py-10 space-y-6">
-      <div className="text-center space-y-1.5">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <Scan className="w-3.5 h-3.5" />
-          <span>Gate Scanner Active</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Staff Ticket Check-in</h1>
-        <p className="text-xs text-slate-400">
-          Scan attendee QR codes with device camera or enter ticket token manually.
-        </p>
-      </div>
+    <main className="page max-w-xl space-y-6 py-10 sm:py-14">
+      <header className="space-y-2">
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Gate check-in</h1>
+        <p className="text-[15px] text-ink-2">Scan a ticket’s QR code, or type the ticket code if the camera can’t read it.</p>
+      </header>
 
-      {/* Main Scanner Container */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl space-y-6">
-        {/* Camera toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-            <Camera className="w-4 h-4 text-indigo-400" />
-            Camera Scanning
-          </span>
-          <button
-            onClick={() => setIsCameraActive((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              isCameraActive
-                ? 'bg-rose-600 hover:bg-rose-500 text-white'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-            }`}
-          >
-            {isCameraActive ? 'Stop Camera' : 'Start Camera'}
+      {result && style ? (
+        <section className={`rounded-xl border-2 p-6 ${style.box}`} role="alert">
+          <div className="flex items-center gap-3">
+            {style.icon}
+            <div>
+              <p className="font-display text-2xl font-semibold leading-tight">{style.title}</p>
+              <p className="text-sm text-ink-2">{result.message}</p>
+            </div>
+          </div>
+
+          {result.attendee && (
+            <dl className="mt-5 space-y-2 rounded-lg bg-surface/70 p-4 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-3">Seat</dt>
+                <dd className="text-right text-lg font-semibold">
+                  {result.attendee.seat}
+                  {result.attendee.tier && (
+                    <span className="ml-2 text-xs font-medium capitalize text-ink-3">{result.attendee.tier.toLowerCase()}</span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-3">Attendee</dt>
+                <dd className="truncate text-right font-medium">{result.attendee.email}</dd>
+              </div>
+              {result.attendee.eventTitle && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-3">Event</dt>
+                  <dd className="text-right">{result.attendee.eventTitle}</dd>
+                </div>
+              )}
+              {result.checkedInAt && (
+                <div className="flex justify-between gap-4 border-t border-line pt-2">
+                  <dt className="text-ink-3">{result.status === 'SUCCESS' ? 'Scanned at' : 'First scanned at'}</dt>
+                  <dd className="tabular-nums">{new Date(result.checkedInAt).toLocaleTimeString()}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          <button type="button" onClick={next} className="btn btn-primary mt-5 w-full py-3">
+            Next attendee
           </button>
-        </div>
-
-        {/* HTML5 QR Camera view container */}
-        {isCameraActive && (
-          <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 p-2">
-            <div id="qr-reader" className="w-full" />
-          </div>
-        )}
-
-        {/* Manual Token input (Great for demo / quick test) */}
-        <div className="space-y-2 pt-2 border-t border-slate-800/80">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-slate-400">
-              Manual Token / UUID Verification
-            </label>
-            <Link
-              href="/my-tickets"
-              className="text-[11px] text-indigo-400 hover:text-indigo-300 underline"
-            >
-              Open My Tickets &rarr;
-            </Link>
-          </div>
-          <p className="text-[11px] text-slate-500">
-            Paste the UUID Token from the attendee&apos;s ticket or click &quot;Copy UUID&quot; from their ticket pass.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-              value={manualToken}
-              onChange={(e) => setManualToken(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && manualToken.trim()) {
-                  handleValidateToken(manualToken);
-                }
-              }}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
-            />
+        </section>
+      ) : (
+        <section className="card space-y-6 p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Camera className="h-4 w-4 text-ink-3" />
+              Camera
+            </p>
             <button
-              onClick={() => handleValidateToken(manualToken)}
-              disabled={isProcessing || !manualToken.trim()}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+              type="button"
+              onClick={() => setCameraOn((on) => !on)}
+              className={`btn btn-sm ${cameraOn ? 'btn-secondary' : 'btn-primary'}`}
             >
-              <Search className="w-3.5 h-3.5" />
-              <span>Verify</span>
+              {cameraOn ? 'Stop camera' : 'Start camera'}
             </button>
           </div>
-        </div>
 
-        {/* Scan Result Feedback Card */}
-        {scanResult && (
-          <div
-            className={`p-5 rounded-xl border text-xs space-y-3 animate-in fade-in zoom-in-95 duration-200 ${
-              scanResult.status === 'SUCCESS'
-                ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                : scanResult.status === 'ALREADY_USED'
-                ? 'bg-amber-950/40 border-amber-500/50 text-amber-200'
-                : 'bg-rose-950/40 border-rose-500/50 text-rose-200'
-            }`}
+          {cameraOn && (
+            <div className="overflow-hidden rounded-lg border border-line bg-sunken p-2">
+              <div id="qr-reader" className="w-full" />
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              validate(manualToken);
+            }}
+            className="space-y-2 border-t border-line pt-5"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {scanResult.status === 'SUCCESS' && (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                )}
-                {scanResult.status === 'ALREADY_USED' && (
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                )}
-                {scanResult.status === 'INVALID' && (
-                  <XCircle className="w-5 h-5 text-rose-400" />
-                )}
-                <span className="font-bold text-sm text-white">
-                  {scanResult.message}
-                </span>
-              </div>
-              <button
-                onClick={() => setScanResult(null)}
-                className="text-[11px] underline opacity-70 hover:opacity-100"
-              >
-                Clear
+            <label htmlFor="manual-code" className="flex items-center gap-2 text-sm font-semibold">
+              <Keyboard className="h-4 w-4 text-ink-3" />
+              Enter a ticket code
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="manual-code"
+                type="text"
+                value={manualToken}
+                onChange={(e) => setManualToken(e.target.value)}
+                placeholder="Paste or type the code"
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                className="field flex-1 font-mono text-[13px]"
+              />
+              <button type="submit" disabled={busy || !manualToken.trim()} className="btn btn-primary">
+                {busy ? 'Checking…' : 'Check'}
               </button>
             </div>
-
-            {scanResult.attendee && (
-              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1.5 text-slate-300">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Attendee:</span>
-                  <span className="font-medium text-white">
-                    {scanResult.attendee.email}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Assigned Seat:</span>
-                  <span className="font-mono font-bold text-emerald-400">
-                    {scanResult.attendee.seat} ({scanResult.attendee.tier || 'STANDARD'})
-                  </span>
-                </div>
-                {scanResult.attendee.eventTitle && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Event:</span>
-                    <span>{scanResult.attendee.eventTitle}</span>
-                  </div>
-                )}
-                {scanResult.checkedInAt && (
-                  <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px] text-slate-400">
-                    <span>Scan Timestamp:</span>
-                    <span className="font-mono">
-                      {new Date(scanResult.checkedInAt).toLocaleTimeString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setScanResult(null);
-                setManualToken('');
-                setIsCameraActive(true);
-              }}
-              className="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Ready for Next Attendee</span>
-            </button>
-          </div>
-        )}
-      </div>
+          </form>
+        </section>
+      )}
     </main>
   );
 }

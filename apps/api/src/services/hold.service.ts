@@ -32,6 +32,9 @@ export async function holdSeats(params: {
   if (!event || event.status !== 'PUBLISHED') {
     throw new AppError(404, 'Event not found or not open for booking');
   }
+  if (event.startsAt.getTime() <= Date.now()) {
+    throw new AppError(400, 'This event has already started');
+  }
 
   // Check user exists
   const user = await prisma.user.findUnique({
@@ -43,41 +46,45 @@ export async function holdSeats(params: {
   }
 
   // Run hold query inside transaction for all-or-nothing atomicity
-  const { heldSeats, releasedSeatIds } = await prisma.$transaction(async (tx) => {
-    // One active hold per user per event check
+  const { heldSeats, releasedSeatIds, releasedElsewhere } = await prisma.$transaction(async (tx) => {
+    // One active hold per user. Anything they currently hold that isn't part of this request is
+    // let go, including seats at other events, so the UI only ever has one hold to describe.
     const existingUserHolds = await tx.eventSeat.findMany({
       where: {
-        eventId,
         heldByUserId: userId,
         status: 'HELD',
         holdExpiresAt: { gt: new Date() },
       },
-      select: { id: true, seatId: true },
+      select: { id: true, seatId: true, eventId: true },
     });
 
     const releasedSeatIds: string[] = [];
+    const releasedElsewhere: Record<string, string[]> = {};
 
-    if (existingUserHolds.length > 0) {
-      // Find seats that were held by this user previously but are NOT in the current request
-      const seatsToRelease = existingUserHolds.filter(
-        (h) => !sortedIds.includes(h.id) && !sortedIds.includes(h.seatId)
-      );
+    const seatsToRelease = existingUserHolds.filter(
+      (h) => !(h.eventId === eventId && (sortedIds.includes(h.id) || sortedIds.includes(h.seatId))),
+    );
 
-      if (seatsToRelease.length > 0) {
-        await tx.eventSeat.updateMany({
-          where: {
-            id: { in: seatsToRelease.map((s) => s.id) },
-            heldByUserId: userId,
-            status: 'HELD',
-          },
-          data: {
-            status: 'AVAILABLE',
-            heldByUserId: null,
-            holdExpiresAt: null,
-            version: { increment: 1 },
-          },
-        });
-        releasedSeatIds.push(...seatsToRelease.map((s) => s.seatId));
+    if (seatsToRelease.length > 0) {
+      await tx.eventSeat.updateMany({
+        where: {
+          id: { in: seatsToRelease.map((s) => s.id) },
+          heldByUserId: userId,
+          status: 'HELD',
+        },
+        data: {
+          status: 'AVAILABLE',
+          heldByUserId: null,
+          holdExpiresAt: null,
+          version: { increment: 1 },
+        },
+      });
+      for (const s of seatsToRelease) {
+        if (s.eventId === eventId) {
+          releasedSeatIds.push(s.seatId);
+        } else {
+          (releasedElsewhere[s.eventId] ??= []).push(s.seatId);
+        }
       }
     }
 
@@ -109,7 +116,7 @@ export async function holdSeats(params: {
       throw new AppError(409, 'One or more selected seats are no longer available');
     }
 
-    return { heldSeats: updatedRows, releasedSeatIds };
+    return { heldSeats: updatedRows, releasedSeatIds, releasedElsewhere };
   });
 
   // Schedule delayed BullMQ job to automatically release seats if not confirmed
@@ -127,6 +134,7 @@ export async function holdSeats(params: {
     heldSeats,
     holdExpiresAt,
     releasedSeatIds,
+    releasedElsewhere,
   };
 }
 
@@ -139,10 +147,10 @@ export async function releaseSeats(params: {
   const ids = [...new Set(seatIds)];
 
   if (ids.length === 0) {
-    return { releasedCount: 0 };
+    return { releasedCount: 0, releasedSeatIds: [] as string[] };
   }
 
-  const updatedRows = await prisma.$queryRaw<Array<{ id: string }>>`
+  const updatedRows = await prisma.$queryRaw<Array<{ id: string; seatId: string }>>`
     UPDATE "EventSeat"
     SET 
       status = 'AVAILABLE'::"SeatStatus",
@@ -154,8 +162,8 @@ export async function releaseSeats(params: {
       AND "heldByUserId" = ${userId}
       AND ("seatId" IN (${Prisma.join(ids)}) OR id IN (${Prisma.join(ids)}))
       AND status = 'HELD'::"SeatStatus"
-    RETURNING id;
+    RETURNING id, "seatId";
   `;
 
-  return { releasedCount: updatedRows.length };
+  return { releasedCount: updatedRows.length, releasedSeatIds: updatedRows.map((r) => r.seatId) };
 }

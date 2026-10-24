@@ -1,23 +1,10 @@
 'use client';
 
 import { use } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import {
-  ArrowLeft,
-  IndianRupee,
-  Ticket,
-  TrendingUp,
-  Building,
-  Calendar,
-  ShieldCheck,
-  ExternalLink,
-  Users,
-  CheckCircle2,
-  Layers,
-} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 import { formatINR, formatEventDateTime } from '@/lib/format';
 import { VenueBadge } from '@/components/venue-badge';
 
@@ -64,40 +51,31 @@ interface EventStatsResponse {
   }>;
 }
 
-export default function EventAnalyticsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const eventId = resolvedParams.id;
+export default function EventAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = use(params);
 
   const { data, isLoading, error } = useQuery<EventStatsResponse>({
     queryKey: ['organizer', 'event', eventId, 'stats'],
     queryFn: () => apiFetch(`/api/organizer/events/${eventId}/stats`),
-    refetchInterval: 6000, // live refresh every 6 seconds
+    refetchInterval: 10000,
   });
 
   if (isLoading) {
     return (
-      <main className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-400">
-        Loading event telemetry...
+      <main className="page max-w-6xl space-y-4 py-10" aria-busy="true">
+        <div className="skeleton h-12 w-80" />
+        <div className="skeleton h-40" />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="max-w-xl mx-auto px-4 py-16 text-center space-y-4">
-        <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
-          Failed to load event statistics. Make sure you are signed in with an organizer account.
-        </div>
-        <Link
-          href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Organizer Dashboard
+      <main className="page max-w-md space-y-4 py-24 text-center">
+        <h1 className="font-display text-2xl font-semibold">Couldn’t load this event</h1>
+        <p className="text-sm text-ink-2">You need to be signed in as an organizer, and the event has to exist.</p>
+        <Link href="/organizer" className="btn btn-secondary btn-sm">
+          Back to dashboard
         </Link>
       </main>
     );
@@ -105,297 +83,109 @@ export default function EventAnalyticsPage({
 
   const { event, overview, checkIn, tiers, recentOrders } = data;
 
+  const stat = (label: string, value: React.ReactNode, hint: string, bar?: number) => (
+    <div className="card p-5">
+      <p className="eyebrow">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+      {bar !== undefined && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
+          <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, bar)}%` }} />
+        </div>
+      )}
+      <p className="mt-2 text-xs text-ink-3">{hint}</p>
+    </div>
+  );
+
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-      {/* Top Navigation & Header */}
-      <div className="space-y-4">
-        <Link
-          href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+    <main className="page max-w-6xl space-y-8 py-8 sm:py-12">
+      <header className="space-y-3">
+        <Link href="/organizer" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Dashboard
         </Link>
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-800/80 pb-6">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {event.title}
-              </h1>
-              {event.venueType && <VenueBadge type={event.venueType} />}
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                Live Event
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-2">
-              <span className="flex items-center gap-1.5">
-                <Building className="w-4 h-4 text-slate-500" />
-                {event.venueName}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                {formatEventDateTime(event.startsAt)}
-              </span>
-            </div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-2">
+            {event.venueType && <VenueBadge type={event.venueType} />}
+            <h1 className="font-display text-4xl font-semibold tracking-tight">{event.title}</h1>
+            <p className="text-sm text-ink-2">
+              {event.venueName} · {formatEventDateTime(event.startsAt)}
+            </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/events/${event.id}`}
-              target="_blank"
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Live Seat Map
+          <div className="flex gap-2">
+            <Link href={`/events/${event.id}`} className="btn btn-secondary btn-sm">
+              Public page
             </Link>
-            <Link
-              href="/staff/scanner"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              Open Gate Scanner
+            <Link href="/staff/scanner" className="btn btn-secondary btn-sm">
+              Scanner
             </Link>
           </div>
         </div>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {stat('Revenue', formatINR(overview.revenueCents), `${overview.soldSeats} seats sold`)}
+        {stat('Occupancy', `${overview.occupancyRate}%`, `${overview.availableSeats} open · ${overview.heldSeats} held right now`, overview.occupancyRate)}
+        {stat('Sold', <>{overview.soldSeats}<span className="ml-1 text-base font-normal text-ink-3">/ {overview.totalSeats}</span></>, 'Seats with a confirmed ticket')}
+        {stat('Checked in', <>{checkIn.checkedInCount}<span className="ml-1 text-base font-normal text-ink-3">/ {checkIn.totalTickets}</span></>, `${checkIn.checkInRate}% have entered`, checkIn.checkInRate)}
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Revenue */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
-            <span>Show Revenue</span>
-            <IndianRupee className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-3 text-2xl font-bold text-white tracking-tight">
-            {formatINR(overview.revenueCents)}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            Collected across {overview.soldSeats} booked seats
-          </div>
-        </motion.div>
-
-        {/* Occupancy */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
-            <span>Occupancy</span>
-            <TrendingUp className="w-4 h-4 text-indigo-400" />
-          </div>
-          <div className="mt-3 text-2xl font-bold text-white tracking-tight">
-            {overview.occupancyRate}%
-          </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div
-              className="bg-indigo-500 h-full rounded-full transition-all duration-700"
-              style={{ width: `${overview.occupancyRate}%` }}
-            />
-          </div>
-        </motion.div>
-
-        {/* Sold Seats Breakdown */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
-            <span>Seats Status</span>
-            <Ticket className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="mt-3 text-2xl font-bold text-white tracking-tight">
-            {overview.soldSeats}
-            <span className="text-sm font-normal text-slate-500 ml-1.5">/ {overview.totalSeats}</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
-            <span className="text-amber-400">{overview.heldSeats} in cart</span> •{' '}
-            <span className="text-slate-400">{overview.availableSeats} available</span>
-          </div>
-        </motion.div>
-
-        {/* Live Gate Check-in Telemetry */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider font-medium">
-            <span>Gate Check-Ins</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="mt-3 text-2xl font-bold text-white tracking-tight">
-            {checkIn.checkedInCount}
-            <span className="text-sm font-normal text-slate-500 ml-1.5">/ {checkIn.totalTickets} entered</span>
-          </div>
-          <div className="w-full bg-slate-800/80 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-700"
-              style={{ width: `${checkIn.checkInRate}%` }}
-            />
-          </div>
-          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-            {checkIn.checkInRate}% checked in at gate
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Tier Performance Breakdown */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          <Layers className="w-5 h-5 text-indigo-400" />
-          <span>Seating Tier Breakdown</span>
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {tiers.map((t) => {
-            const tierColors: Record<string, { badge: string; border: string; accent: string }> = {
-              VIP: {
-                badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                border: 'border-amber-500/20',
-                accent: 'text-amber-400',
-              },
-              PREMIUM: {
-                badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-                border: 'border-indigo-500/20',
-                accent: 'text-indigo-400',
-              },
-              STANDARD: {
-                badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-                border: 'border-cyan-500/20',
-                accent: 'text-cyan-400',
-              },
-            };
-            const theme = tierColors[t.tier] || tierColors.STANDARD;
-
-            return (
-              <div
-                key={t.tier}
-                className={`rounded-2xl border ${theme.border} bg-slate-900/40 p-5 space-y-4 backdrop-blur-sm`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${theme.badge}`}>
-                    {t.tier}
-                  </span>
-                  <span className="text-xs font-bold text-slate-300">
-                    {formatINR(t.price)} <span className="text-[10px] font-normal text-slate-500">/ seat</span>
-                  </span>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-slate-400">Occupancy</span>
-                    <span className="font-bold text-white">{t.occupancyRate}%</span>
-                  </div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-indigo-500 h-full rounded-full transition-all duration-700"
-                      style={{ width: `${t.occupancyRate}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-slate-800/60">
-                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/40">
-                    <div className="text-xs font-bold text-emerald-400">{t.sold}</div>
-                    <div className="text-[10px] text-slate-500">Sold</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/40">
-                    <div className="text-xs font-bold text-amber-400">{t.held}</div>
-                    <div className="text-[10px] text-slate-500">Held</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/40">
-                    <div className="text-xs font-bold text-slate-300">{t.available}</div>
-                    <div className="text-[10px] text-slate-500">Avail</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
-                  <span className="text-slate-400">Tier Revenue</span>
-                  <span className="font-bold text-emerald-400">{formatINR(t.revenue)}</span>
-                </div>
-              </div>
-            );
-          })}
+      <section className="space-y-3" aria-labelledby="tiers-h">
+        <h2 id="tiers-h" className="font-display text-2xl font-semibold">By section</h2>
+        <div className="card overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="border-b border-line text-xs text-ink-3">
+              <tr>
+                <th className="px-5 py-3 font-medium">Section</th>
+                <th className="px-3 py-3 text-right font-medium">Price</th>
+                <th className="px-3 py-3 font-medium">Sold</th>
+                <th className="px-3 py-3 text-right font-medium">Held</th>
+                <th className="px-3 py-3 text-right font-medium">Open</th>
+                <th className="px-5 py-3 text-right font-medium">Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {tiers.map((t) => (
+                <tr key={t.tier}>
+                  <td className="px-5 py-3 font-medium capitalize">{t.tier.toLowerCase()}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{formatINR(t.price)}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-line">
+                        <div className="h-full bg-accent" style={{ width: `${t.occupancyRate}%` }} />
+                      </div>
+                      <span className="text-xs tabular-nums text-ink-3">{t.sold}/{t.total}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-ink-2">{t.held}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-ink-2">{t.available}</td>
+                  <td className="px-5 py-3 text-right font-medium tabular-nums">{formatINR(t.revenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      {/* Confirmed Orders for this event */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          <Users className="w-5 h-5 text-cyan-400" />
-          <span>Attendee Bookings</span>
-          <span className="text-xs font-normal text-slate-400">({recentOrders.length})</span>
-        </h2>
-
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/30 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 border-b border-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Order ID</th>
-                  <th className="px-4 py-3 font-medium">Customer Email</th>
-                  <th className="px-4 py-3 font-medium">Assigned Seats</th>
-                  <th className="px-4 py-3 font-medium text-right">Total Paid</th>
-                  <th className="px-4 py-3 font-medium text-right">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                {recentOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                      No attendee bookings yet for this event.
-                    </td>
-                  </tr>
-                ) : (
-                  recentOrders.map((order) => {
-                    const orderDate = new Date(order.createdAt);
-                    return (
-                      <tr key={order.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                          {order.id.slice(0, 8)}...
-                        </td>
-                        <td className="px-4 py-3 font-medium text-white">{order.userEmail}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {order.seats.map((seatLabel) => (
-                              <span
-                                key={seatLabel}
-                                className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
-                              >
-                                {seatLabel}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-emerald-400">
-                          {formatINR(order.totalCents)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-500 text-[11px]">
-                          {orderDate.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+      <section className="space-y-3" aria-labelledby="orders-h">
+        <h2 id="orders-h" className="font-display text-2xl font-semibold">Recent orders</h2>
+        {recentOrders.length === 0 ? (
+          <p className="card p-8 text-center text-sm text-ink-3">No orders for this event yet.</p>
+        ) : (
+          <div className="card divide-y divide-line">
+            {recentOrders.map((o) => (
+              <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{o.userEmail}</p>
+                  <p className="text-xs text-ink-3">Seats {o.seats.join(', ')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium tabular-nums">{formatINR(o.totalCents)}</p>
+                  <p className="text-xs text-ink-3">{new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
       </section>
     </main>
   );

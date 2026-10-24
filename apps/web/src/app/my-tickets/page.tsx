@@ -1,22 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  Ticket,
-  Calendar,
-  MapPin,
-  CheckCircle2,
-  ArrowLeft,
-  Printer,
-  Clock,
-  Copy,
-  Check,
-  Maximize2,
-  X,
-} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { Calendar, Check, Copy, MapPin, Printer, QrCode, X } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 import { formatINR, formatEventDateTime } from '@/lib/format';
 
 interface TicketItem {
@@ -36,309 +25,285 @@ interface OrderItem {
   tickets: TicketItem[];
 }
 
+interface Enlarged {
+  qrDataUrl: string;
+  qrToken: string;
+  seatLabel: string;
+  eventTitle: string;
+}
+
+const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+function ConfirmedNotice() {
+  const params = useSearchParams();
+  if (params.get('confirmed') !== '1') return null;
+  return (
+    <p className="notice notice-ok no-print">
+      <Check className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>You’re booked. Your tickets are below, and a copy is on its way to your inbox.</span>
+    </p>
+  );
+}
+
+function TicketCard({
+  ticket,
+  onEnlarge,
+  onCopy,
+  copied,
+}: {
+  ticket: TicketItem;
+  onEnlarge: () => void;
+  onCopy: () => void;
+  copied: boolean;
+}) {
+  const used = !!ticket.checkedInAt;
+  return (
+    <li className="flex overflow-hidden rounded-lg border border-line bg-bg">
+      <button
+        type="button"
+        onClick={onEnlarge}
+        className="group relative m-3 shrink-0 self-start rounded-md bg-white p-1.5 ring-1 ring-black/10 transition hover:ring-accent"
+        aria-label={`Enlarge QR code for row ${ticket.seat.row}, seat ${ticket.seat.number}`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={ticket.qrDataUrl} alt="" className={`h-[88px] w-[88px] ${used ? 'opacity-30' : ''}`} />
+        <span className="no-print absolute inset-0 flex items-center justify-center rounded-md bg-black/0 text-transparent transition group-hover:bg-black/55 group-hover:text-white">
+          <QrCode className="h-5 w-5" />
+        </span>
+      </button>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between border-l border-dashed border-line-strong py-3 pl-4 pr-3">
+        <div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="eyebrow capitalize">{ticket.seat.tier.toLowerCase()}</span>
+            <span className={`text-xs font-semibold ${used ? 'text-ink-3' : 'text-ok'}`}>{used ? 'Used' : 'Valid'}</span>
+          </div>
+          <p className="mt-1 font-display text-xl font-semibold leading-tight">
+            Row {ticket.seat.row}, seat {ticket.seat.number}
+          </p>
+          <p className="text-xs tabular-nums text-ink-3">{formatINR(ticket.price)}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onCopy}
+          className="no-print mt-3 inline-flex items-center gap-1.5 self-start text-xs font-medium text-ink-2 hover:text-accent"
+          title="Copy the ticket code, handy if the QR won’t scan"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-ok" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy ticket code'}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function OrderBlock({
+  order,
+  onEnlarge,
+  onCopy,
+  copiedId,
+}: {
+  order: OrderItem;
+  onEnlarge: (t: TicketItem, order: OrderItem) => void;
+  onCopy: (t: TicketItem) => void;
+  copiedId: string | null;
+}) {
+  return (
+    <article className="card overflow-hidden">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
+        <div className="space-y-1.5">
+          <h3 className="font-display text-2xl font-semibold leading-tight tracking-tight">{order.event.title}</h3>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-ink-3" />
+              {formatEventDateTime(order.event.startsAt)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-ink-3" />
+              {order.event.venue.name}
+            </span>
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-semibold tabular-nums">{formatINR(order.totalCents)}</p>
+          <p className="text-xs text-ink-3">
+            Order {order.id.slice(0, 8).toUpperCase()} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
+          </p>
+        </div>
+      </header>
+
+      <ul className="grid gap-3 p-4 sm:grid-cols-2">
+        {order.tickets.map((t) => (
+          <TicketCard
+            key={t.id}
+            ticket={t}
+            copied={copiedId === t.id}
+            onEnlarge={() => onEnlarge(t, order)}
+            onCopy={() => onCopy(t)}
+          />
+        ))}
+      </ul>
+    </article>
+  );
+}
+
 export default function MyTicketsPage() {
   const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiFetch('/api/auth/me'),
     retry: false,
   });
-
   const user = authData?.user;
 
-  const { data, isLoading, isError } = useQuery<{ orders: OrderItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ orders: OrderItem[] }>({
     queryKey: ['my-tickets'],
     queryFn: () => apiFetch('/api/orders/my-tickets'),
     enabled: !!user,
     retry: false,
   });
 
-  const orders = data?.orders || [];
-  const isPageLoading = authLoading || (!!user && isLoading);
-  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
-  const [enlargedTicket, setEnlargedTicket] = useState<{
-    qrDataUrl: string;
-    qrToken: string;
-    seatLabel: string;
-    eventTitle: string;
-    tier: string;
-  } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [enlarged, setEnlarged] = useState<Enlarged | null>(null);
 
-  function handleCopy(token: string, id: string) {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(token);
-      setCopiedTokenId(id);
-      setTimeout(() => setCopiedTokenId(null), 2000);
+  const { upcoming, past } = useMemo(() => {
+    const now = Date.now();
+    const orders = data?.orders ?? [];
+    const isPast = (o: OrderItem) => new Date(o.event.startsAt).getTime() + SIX_HOURS < now;
+    return {
+      upcoming: orders
+        .filter((o) => !isPast(o))
+        .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime()),
+      past: orders.filter(isPast),
+    };
+  }, [data]);
+
+  useEffect(() => {
+    if (!enlarged) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setEnlarged(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enlarged]);
+
+  async function copyToken(token: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 2000);
+    } catch {
+      // Clipboard blocked (insecure context); the code is still visible in the QR dialog
     }
   }
 
+  const handleEnlarge = (t: TicketItem, order: OrderItem) =>
+    setEnlarged({
+      qrDataUrl: t.qrDataUrl,
+      qrToken: t.qrToken,
+      seatLabel: `Row ${t.seat.row}, seat ${t.seat.number}`,
+      eventTitle: order.event.title,
+    });
+
+  const hasOrders = upcoming.length + past.length > 0;
+  const loading = authLoading || (!!user && isLoading);
+
   return (
-    <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Link
-            href="/"
-            className="text-xs text-slate-500 hover:text-white flex items-center gap-1.5 transition-colors mb-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Events
-          </Link>
-          <h1 className="text-2xl font-bold text-white">My Tickets</h1>
-          <p className="text-sm text-slate-400">Your purchased QR passes and seat reservations.</p>
+    <main className="page max-w-4xl space-y-8 py-10 sm:py-14">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">My tickets</h1>
+          <p className="text-[15px] text-ink-2">Show the QR code at the door. Staff scan it once.</p>
         </div>
-        {user && orders.length > 0 && (
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-sm text-slate-300 transition-colors"
-          >
-            <Printer className="w-4 h-4" />
+        {user && hasOrders && (
+          <button type="button" onClick={() => window.print()} className="btn btn-secondary btn-sm no-print">
+            <Printer className="h-3.5 w-3.5" />
             Print
           </button>
         )}
-      </div>
+      </header>
 
-      {/* States */}
-      {isPageLoading ? (
-        <div className="space-y-4 animate-pulse">
-          <div className="h-36 bg-slate-800/40 rounded-2xl border border-slate-800" />
-          <div className="h-36 bg-slate-800/40 rounded-2xl border border-slate-800" />
+      <Suspense fallback={null}>
+        <ConfirmedNotice />
+      </Suspense>
+
+      {loading ? (
+        <div className="space-y-4" aria-busy="true">
+          <div className="skeleton h-52" />
+          <div className="skeleton h-52" />
         </div>
-      ) : !user || isError ? (
-        <div className="max-w-sm mx-auto p-8 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-5">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
-            <Ticket className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-white">Sign in to view tickets</h2>
-            <p className="text-xs text-slate-400 mt-1">Your tickets are linked to your account.</p>
-          </div>
-          <div className="space-y-3">
-            <Link
-              href="/login"
-              className="block w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium text-center transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
+      ) : !user ? (
+        <div className="card mx-auto max-w-sm space-y-4 p-8 text-center">
+          <h2 className="font-display text-xl font-semibold">Sign in to see your tickets</h2>
+          <p className="text-sm text-ink-2">Tickets live on your account, so they’re safe if you switch devices.</p>
+          <Link href="/login?redirect=/my-tickets" className="btn btn-primary w-full">
+            Sign in
+          </Link>
         </div>
-      ) : orders.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-slate-800/30 border border-slate-800 text-center space-y-3">
-          <Ticket className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-sm font-medium text-slate-300">No tickets yet</p>
-          <p className="text-xs text-slate-500">Browse events and pick your seats to get started.</p>
-          <Link
-            href="/"
-            className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-          >
-            Browse Events
+      ) : isError ? (
+        <div className="card space-y-3 p-8 text-center">
+          <p className="font-display text-xl font-semibold">We couldn’t load your tickets</p>
+          <button type="button" onClick={() => refetch()} className="btn btn-secondary btn-sm">
+            Try again
+          </button>
+        </div>
+      ) : !hasOrders ? (
+        <div className="card space-y-3 p-10 text-center">
+          <p className="font-display text-xl font-semibold">No tickets yet</p>
+          <p className="text-sm text-ink-2">When you book seats, they’ll show up here.</p>
+          <Link href="/" className="btn btn-primary btn-sm mt-1">
+            Browse events
           </Link>
         </div>
       ) : (
-        <div className="space-y-6">
-          {orders.map((order) => {
-            const eventDate = formatEventDateTime(order.event.startsAt);
-
-            return (
-              <div
-                key={order.id}
-                className="rounded-2xl border border-slate-800 bg-slate-800/20 overflow-hidden"
-              >
-                {/* Order header */}
-                <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                        #{order.id.slice(0, 8).toUpperCase()}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN')}
-                      </span>
-                    </div>
-                    <h2 className="text-base font-semibold text-white">{order.event.title}</h2>
-                    <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {eventDate}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5" />
-                        {order.event.venue.name}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Total Paid</p>
-                    <p className="text-lg font-bold text-white font-mono">{formatINR(order.totalCents)}</p>
-                    <p className="text-xs text-slate-500">{order.tickets.length} seat{order.tickets.length !== 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-
-                {/* Tickets */}
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {order.tickets.map((t) => {
-                    const tierColor = {
-                      VIP: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-                      PREMIUM: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
-                      STANDARD: 'text-slate-300 bg-slate-700/40 border-slate-700',
-                    }[t.seat.tier] ?? 'text-slate-300 bg-slate-700/40 border-slate-700';
-
-                    return (
-                      <div
-                        key={t.id}
-                        className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3"
-                      >
-                        <div className="flex items-center gap-4">
-                          {/* QR Thumbnail with click-to-expand */}
-                          <div className="relative group/qr shrink-0">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEnlargedTicket({
-                                  qrDataUrl: t.qrDataUrl,
-                                  qrToken: t.qrToken,
-                                  seatLabel: `Row ${t.seat.row}, Seat ${t.seat.number}`,
-                                  eventTitle: order.event.title,
-                                  tier: t.seat.tier,
-                                })
-                              }
-                              className="bg-white p-1.5 rounded-lg shadow-md cursor-pointer hover:ring-2 hover:ring-indigo-500/50 transition-all text-left block"
-                              title="Click to enlarge QR code for scanning"
-                            >
-                              <img
-                                src={t.qrDataUrl}
-                                alt="QR Code"
-                                className="w-16 h-16 object-contain"
-                              />
-                            </button>
-                            <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white p-0.5 rounded-full shadow pointer-events-none opacity-0 group-hover/qr:opacity-100 transition-opacity">
-                              <Maximize2 className="w-2.5 h-2.5" />
-                            </span>
-                          </div>
-
-                          {/* Details */}
-                          <div className="flex-1 min-w-0 space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${tierColor}`}>
-                                {t.seat.tier}
-                              </span>
-                              <span className="text-xs font-mono font-semibold text-white">{formatINR(t.price)}</span>
-                            </div>
-
-                            <p className="text-sm font-semibold text-white">
-                              Row {t.seat.row} &bull; Seat {t.seat.number}
-                            </p>
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-slate-400">Section {t.seat.section}</span>
-                              <span className={`flex items-center gap-1 text-[11px] font-medium ${t.checkedInAt ? 'text-slate-500' : 'text-emerald-400'}`}>
-                                {t.checkedInAt
-                                  ? <><Clock className="w-3 h-3" /> Used</>
-                                  : <><CheckCircle2 className="w-3 h-3" /> Valid</>}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Ticket UUID row */}
-                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                              Ticket Token / UUID
-                            </p>
-                            <p className="text-xs font-mono text-slate-300 truncate select-all" title={t.qrToken}>
-                              {t.qrToken}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(t.qrToken, t.id)}
-                            className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 border border-slate-700/80 transition-colors"
-                            title="Copy UUID for Staff Check-in"
-                          >
-                            {copiedTokenId === t.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-emerald-400 font-semibold">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>Copy UUID</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {upcoming.length > 0 && (
+            <section className="space-y-4" aria-label="Upcoming">
+              {past.length > 0 && <h2 className="eyebrow">Upcoming</h2>}
+              {upcoming.map((o) => (
+                <OrderBlock key={o.id} order={o} onEnlarge={handleEnlarge} onCopy={(t) => copyToken(t.qrToken, t.id)} copiedId={copiedId} />
+              ))}
+            </section>
+          )}
+          {past.length > 0 && (
+            <section className="space-y-4" aria-label="Past events">
+              <h2 className="eyebrow">Past events</h2>
+              {past.map((o) => (
+                <OrderBlock key={o.id} order={o} onEnlarge={handleEnlarge} onCopy={(t) => copyToken(t.qrToken, t.id)} copiedId={copiedId} />
+              ))}
+            </section>
+          )}
+        </>
       )}
 
-      {/* Enlarged QR Modal */}
-      {enlargedTicket && (
+      {enlarged && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setEnlargedTicket(null)}
+          aria-label={`QR code for ${enlarged.seatLabel}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setEnlarged(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 space-y-4 shadow-2xl relative text-center"
+            className="relative w-full max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center shadow-lift"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              onClick={() => setEnlargedTicket(null)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Close"
+              onClick={() => setEnlarged(null)}
+              className="absolute right-3 top-3 rounded-md p-1.5 text-ink-3 hover:bg-sunken hover:text-ink"
+              aria-label="Close"
+              autoFocus
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
-
-            <div className="space-y-1">
-              <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                {enlargedTicket.tier} Ticket Pass
-              </span>
-              <h3 className="font-bold text-base text-white">{enlargedTicket.eventTitle}</h3>
-              <p className="text-sm font-semibold text-indigo-400">{enlargedTicket.seatLabel}</p>
+            <div className="space-y-0.5 pt-2">
+              <p className="font-display text-xl font-semibold">{enlarged.eventTitle}</p>
+              <p className="text-sm font-medium text-accent">{enlarged.seatLabel}</p>
             </div>
-
-            {/* High-res White QR Box */}
-            <div className="bg-white p-4 rounded-xl shadow-inner inline-block mx-auto border-2 border-slate-200">
-              <img
-                src={enlargedTicket.qrDataUrl}
-                alt="Ticket QR Code"
-                className="w-56 h-56 object-contain mx-auto"
-              />
+            <div className="mx-auto inline-block rounded-xl bg-white p-3 ring-1 ring-black/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={enlarged.qrDataUrl} alt="Ticket QR code" className="h-60 w-60" />
             </div>
-
-            <div className="space-y-2">
-              <p className="text-xs text-slate-400">
-                Present this code to staff at the venue turnstile or scanner gate.
-              </p>
-              <div className="pt-2 flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCopy(enlargedTicket.qrToken, 'modal')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-                >
-                  {copiedTokenId === 'modal' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-300" />
-                      <span>UUID Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy UUID Token</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+            <p className="text-xs text-ink-3">Hold your screen brightness up and show this to the scanner at the gate.</p>
           </div>
         </div>
       )}

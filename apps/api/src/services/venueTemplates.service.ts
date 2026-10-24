@@ -43,7 +43,7 @@ export interface VenueTemplateConfig {
 
 export const VENUE_TEMPLATES: Record<VenueType, VenueTemplateConfig> = {
   THEATER_DOLBY: {
-    defaultName: 'Dolby Atmos CineDome',
+    defaultName: 'Dolby Atmos Cinema',
     layout: {
       width: 1000,
       height: 760,
@@ -172,7 +172,7 @@ export const VENUE_TEMPLATES: Record<VenueType, VenueTemplateConfig> = {
   },
 
   CONFERENCE_HALL: {
-    defaultName: 'Silicon Grand Convention Center',
+    defaultName: 'Convention Centre Hall',
     layout: {
       width: 1000,
       height: 750,
@@ -269,7 +269,7 @@ export const VENUE_TEMPLATES: Record<VenueType, VenueTemplateConfig> = {
   },
 
   AUDITORIUM: {
-    defaultName: 'Royal Philharmonic Grand Auditorium',
+    defaultName: 'Grand Auditorium',
     layout: {
       width: 1000,
       height: 760,
@@ -356,7 +356,7 @@ export const VENUE_TEMPLATES: Record<VenueType, VenueTemplateConfig> = {
   },
 
   ARENA: {
-    defaultName: 'Neon Horizon Mega Arena',
+    defaultName: 'Concert Arena',
     layout: {
       width: 1000,
       height: 770,
@@ -474,7 +474,7 @@ export const VENUE_TEMPLATES: Record<VenueType, VenueTemplateConfig> = {
   },
 
   OTHERS: {
-    defaultName: 'Grand Multipurpose Hall',
+    defaultName: 'Multipurpose Hall',
     layout: {
       width: 1000,
       height: 700,

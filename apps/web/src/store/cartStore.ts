@@ -19,6 +19,7 @@ interface CartState {
   setEventId: (eventId: string | null) => void;
   toggleSeat: (seat: SeatItem) => { success: boolean; error?: string };
   clearSelection: () => void;
+  removeSeats: (ids: string[]) => void;
   setHeldSeats: (seatIds: string[], expiresAt: string, eventId?: string) => void;
   restoreHold: (eventId: string, seats: SeatItem[], expiresAt: string) => void;
   clearHold: () => void;
@@ -34,20 +35,17 @@ export const useCartStore = create<CartState>()(
 
       setEventId: (eventId) => {
         const { eventId: currentEventId, heldSeatIds, holdExpiresAt } = get();
-        const isHoldActive =
-          heldSeatIds.length > 0 && !!holdExpiresAt && new Date(holdExpiresAt) > new Date();
 
-        // If hold is expired, clear hold
-        if (heldSeatIds.length > 0 && holdExpiresAt && new Date(holdExpiresAt) <= new Date()) {
+        // The cart only ever describes the event being viewed. Switching events drops the local
+        // selection; any server-side hold stays put and is restored from the API when relevant.
+        if (currentEventId !== eventId) {
           set({ eventId, selectedSeats: [], heldSeatIds: [], holdExpiresAt: null });
           return;
         }
 
-        // If switching events without active hold, clear selection
-        if (!isHoldActive && currentEventId && currentEventId !== eventId) {
-          set({ eventId, selectedSeats: [] });
-        } else {
-          set({ eventId });
+        // Same event: drop a hold that has already lapsed
+        if (heldSeatIds.length > 0 && holdExpiresAt && new Date(holdExpiresAt) <= new Date()) {
+          set({ selectedSeats: [], heldSeatIds: [], holdExpiresAt: null });
         }
       },
 
@@ -83,6 +81,11 @@ export const useCartStore = create<CartState>()(
       },
 
       clearSelection: () => set({ selectedSeats: [] }),
+
+      removeSeats: (ids) =>
+        set((state) => ({
+          selectedSeats: state.selectedSeats.filter((s) => !ids.includes(s.id)),
+        })),
 
       setHeldSeats: (seatIds, expiresAt, eventId) =>
         set((state) => ({

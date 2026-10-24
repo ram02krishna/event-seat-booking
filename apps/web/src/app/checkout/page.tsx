@@ -1,13 +1,15 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
-import { useCartStore } from '@/store/cartStore';
-import { apiFetch } from '@/lib/api';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, Ticket, Mail, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
-import { formatINR } from '@/lib/format';
+import { ArrowLeft, Clock } from 'lucide-react';
+import { apiFetch, ApiError } from '@/lib/api';
+import { formatINR, formatEventDateTime } from '@/lib/format';
+import { deriveMyHold } from '@/lib/hold';
+import { useCartStore } from '@/store/cartStore';
+import { useCountdown, formatClock } from '@/hooks/useCountdown';
 
 function safeUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -15,8 +17,7 @@ function safeUUID(): string {
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
 
@@ -25,208 +26,226 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const eventId = searchParams.get('eventId');
-  const { selectedSeats, clearHold, restoreHold } = useCartStore();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { eventId: cartEventId, selectedSeats, holdExpiresAt, heldSeatIds, restoreHold, clearHold } = useCartStore();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lapsed, setLapsed] = useState(false);
 
-  const { data: authData } = useQuery({
+  // One key per attempt. It only changes after the server has definitively rejected the request,
+  // so a retry after a dropped connection can never create a second order.
+  const idempotencyKey = useRef(safeUUID());
+
+  const { data: authData, isLoading: authLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiFetch('/api/auth/me'),
     retry: false,
   });
+  const user = authData?.user;
 
-  // Query seats if selectedSeats is empty to restore server-held seats
-  const { data: seatData, isLoading: isSeatsLoading } = useQuery({
+  const { data: seatData, isLoading: seatsLoading } = useQuery({
     queryKey: ['events', eventId, 'seats'],
     queryFn: () => apiFetch(`/api/events/${eventId}/seats`),
-    enabled: !!eventId && selectedSeats.length === 0,
-    retry: 1,
+    enabled: !!eventId,
+    staleTime: 5000,
   });
 
-  // Auto-restore held seats if available
+  // The server is the authority on what we hold. Sync it into the cart so reloads and other devices work.
   useEffect(() => {
-    if (selectedSeats.length > 0 || !seatData?.seats || !eventId) return;
+    if (!eventId || !seatData?.seats) return;
+    const hold = deriveMyHold(seatData.seats);
+    if (hold) restoreHold(eventId, hold.seats, hold.expiresAt);
+  }, [seatData, eventId, restoreHold]);
 
-    const now = new Date();
-    const myHeld = seatData.seats.filter(
-      (s: any) => s.status === 'HELD' && s.isHeldByMe && s.holdExpiresAt && new Date(s.holdExpiresAt) > now
-    );
+  // Only trust the cart if it belongs to this event
+  const cartMatches = !!eventId && cartEventId === eventId;
+  const seats = cartMatches ? selectedSeats : [];
+  const expiresAt = cartMatches ? holdExpiresAt : null;
+  const hasHold = cartMatches && heldSeatIds.length > 0;
+  const total = seats.reduce((sum, s) => sum + s.price, 0);
 
-    if (myHeld.length > 0) {
-      const earliestExpiry = myHeld.reduce((earliest: string | null, s: any) => {
-        if (!s.holdExpiresAt) return earliest;
-        return earliest
-          ? new Date(s.holdExpiresAt) < new Date(earliest)
-            ? s.holdExpiresAt
-            : earliest
-          : s.holdExpiresAt;
-      }, myHeld[0].holdExpiresAt);
+  const remaining = useCountdown(hasHold ? expiresAt : null, () => {
+    setLapsed(true);
+    clearHold();
+    queryClient.invalidateQueries({ queryKey: ['events', eventId, 'seats'] });
+  });
+  const urgent = remaining !== null && remaining < 60;
+  const expired = lapsed;
 
-      if (earliestExpiry) {
-        restoreHold(
-          eventId,
-          myHeld.map((s: any) => ({
-            id: s.id,
-            seatId: s.seatId,
-            section: s.section,
-            row: s.row,
-            number: s.number,
-            tier: s.tier,
-            price: s.price,
-          })),
-          earliestExpiry
-        );
-      }
-    }
-  }, [seatData, selectedSeats.length, eventId, restoreHold]);
-
-  const user = authData?.user;
-  const totalCents = selectedSeats.reduce((sum, s) => sum + s.price, 0);
-
-  async function handleConfirmBooking() {
-    if (!eventId || selectedSeats.length === 0) return;
-    setIsLoading(true);
+  async function handleConfirm() {
+    if (!eventId || seats.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
     setError(null);
     try {
       await apiFetch('/api/orders/confirm', {
         method: 'POST',
         body: JSON.stringify({
           eventId,
-          seatIds: selectedSeats.map((s) => s.seatId),
-          idempotencyKey: safeUUID(),
+          seatIds: seats.map((s) => s.seatId),
+          idempotencyKey: idempotencyKey.current,
         }),
       });
       clearHold();
-      await queryClient.invalidateQueries({ queryKey: ['my-tickets'] });
-      router.push('/my-tickets');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['my-tickets'] }),
+        queryClient.invalidateQueries({ queryKey: ['active-hold'] }),
+        queryClient.invalidateQueries({ queryKey: ['events'] }),
+      ]);
+      router.push('/my-tickets?confirmed=1');
     } catch (err: any) {
-      setError(err.message || 'Failed to confirm booking');
+      if (err instanceof ApiError) {
+        // Rejected for a real reason; a fresh attempt deserves a fresh key
+        idempotencyKey.current = safeUUID();
+        setError(err.message);
+      } else {
+        // Network trouble: keep the key so retrying is safe
+        setError('We couldn’t reach the server. Check your connection and try again.');
+      }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }
 
-  if (isSeatsLoading && selectedSeats.length === 0) {
+  if (!eventId) {
     return (
-      <main className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-sm text-slate-400">Restoring your held seats...</p>
-      </main>
-    );
-  }
-
-  if (selectedSeats.length === 0) {
-    return (
-      <main className="max-w-sm mx-auto px-4 py-20 text-center space-y-4">
-        <Ticket className="w-10 h-10 text-slate-600 mx-auto" />
-        <h2 className="text-lg font-semibold text-white">No seats selected</h2>
-        <p className="text-sm text-slate-400">Your hold may have expired. Go back and pick seats.</p>
-        <Link
-          href="/"
-          className="inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-        >
-          Browse Events
+      <main className="page max-w-md space-y-4 py-24 text-center">
+        <h1 className="font-display text-2xl font-semibold">Nothing to check out</h1>
+        <Link href="/" className="btn btn-primary btn-sm">
+          Browse events
         </Link>
       </main>
     );
   }
+
+  if ((seatsLoading || authLoading) && !hasHold) {
+    return (
+      <main className="page max-w-3xl space-y-4 py-12" aria-busy="true">
+        <div className="skeleton h-10 w-56" />
+        <div className="skeleton h-72" />
+      </main>
+    );
+  }
+
+  if (seats.length === 0 || !hasHold || expired) {
+    return (
+      <main className="page max-w-md space-y-4 py-24 text-center">
+        <h1 className="font-display text-2xl font-semibold">
+          {expired ? 'Your hold has expired' : 'No seats on hold'}
+        </h1>
+        <p className="text-sm text-ink-2">
+          {expired
+            ? 'The seats were released so others can book them. You can pick again if they’re still free.'
+            : 'Choose your seats first, then come back here to confirm.'}
+        </p>
+        <Link href={`/events/${eventId}`} className="btn btn-primary btn-sm">
+          Back to the seat map
+        </Link>
+      </main>
+    );
+  }
+
+  const eventInfo = seatData?.event;
 
   return (
-    <main className="max-w-md mx-auto px-4 py-10 space-y-6">
-      <div>
+    <main className="page max-w-3xl space-y-6 py-8 sm:py-12">
+      <div className="space-y-3">
         <Link
-          href={eventId ? `/events/${eventId}` : '/'}
-          className="text-xs text-slate-500 hover:text-white flex items-center gap-1.5 transition-colors mb-3"
+          href={`/events/${eventId}`}
+          className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Seat Map
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to seat map
         </Link>
-        <h1 className="text-xl font-bold text-white">Review Booking</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Confirm your seat selection to issue QR tickets.</p>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-800/20 p-5 space-y-5">
-        {/* Account notice */}
-        {user ? (
-          <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-            <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-slate-500 text-[11px]">Confirmation will be sent to</p>
-              <p className="text-white font-medium truncate">{user.email}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 text-center">
-            <p className="text-xs text-slate-300 font-medium">Please sign in to complete your booking</p>
-            <Link
-              href={`/login?redirect=${encodeURIComponent(`/checkout?eventId=${eventId || ''}`)}`}
-              className="inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Review your booking</h1>
+          {remaining !== null && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums ${
+                urgent ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'
+              }`}
+              role="timer"
             >
-              Sign In to Continue
-            </Link>
-          </div>
-        )}
-
-        {/* Seats */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Selected Seats ({selectedSeats.length})
-          </p>
-          <div className="space-y-2">
-            {selectedSeats.map((seat) => (
-              <div
-                key={seat.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-sm"
-              >
-                <div>
-                  <p className="font-medium text-white">Row {seat.row} &bull; Seat {seat.number}</p>
-                  <p className="text-xs text-slate-500">
-                    Section {seat.section} &bull; <span className="text-indigo-400">{seat.tier}</span>
-                  </p>
-                </div>
-                <span className="font-mono font-semibold text-white">{formatINR(seat.price)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Totals */}
-        <div className="pt-3 border-t border-slate-800 space-y-2 text-sm">
-          <div className="flex justify-between text-slate-400">
-            <span>Subtotal</span>
-            <span className="font-mono text-slate-200">{formatINR(totalCents)}</span>
-          </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Convenience / Platform Fee</span>
-            <span className="text-emerald-400 text-xs font-semibold">₹0 (Waived)</span>
-          </div>
-          <div className="flex justify-between font-semibold text-white text-base pt-2 border-t border-slate-800">
-            <span>Total</span>
-            <span className="font-mono">{formatINR(totalCents)}</span>
-          </div>
-        </div>
-
-        {error && (
-          <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={handleConfirmBooking}
-          disabled={isLoading || !user}
-          className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          {isLoading ? 'Generating Tickets...' : 'Confirm & Issue Tickets'}
-        </button>
-
-        <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          Atomic seat lock &mdash; zero double-booking
+              <Clock className="h-3.5 w-3.5" />
+              {formatClock(remaining)} left
+            </span>
+          )}
         </div>
       </div>
+
+      <section className="card divide-y divide-line">
+        {eventInfo && (
+          <div className="p-5">
+            <p className="eyebrow">Event</p>
+            <p className="mt-1 font-display text-xl font-semibold">{eventInfo.title}</p>
+            {eventInfo.startsAt && <p className="text-sm text-ink-2">{formatEventDateTime(eventInfo.startsAt)}</p>}
+          </div>
+        )}
+
+        <div className="p-5">
+          <p className="eyebrow mb-1">
+            {seats.length} seat{seats.length === 1 ? '' : 's'}
+          </p>
+          <ul className="divide-y divide-line">
+            {seats.map((seat) => (
+              <li key={seat.id} className="flex items-center justify-between py-3 text-sm">
+                <div>
+                  <p className="font-medium">
+                    Row {seat.row}, seat {seat.number}
+                  </p>
+                  <p className="text-xs capitalize text-ink-3">{seat.tier.toLowerCase()}</p>
+                </div>
+                <span className="tabular-nums">{formatINR(seat.price)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex items-baseline justify-between p-5">
+          <span className="text-sm text-ink-2">Total</span>
+          <span className="text-3xl font-semibold tabular-nums">{formatINR(total)}</span>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {user ? (
+            <p className="text-sm text-ink-2">
+              Tickets will be emailed to <span className="font-medium text-ink">{user.email}</span> and saved under My
+              tickets.
+            </p>
+          ) : (
+            <p className="notice notice-warn">
+              <span>
+                Please{' '}
+                <Link
+                  className="font-semibold underline"
+                  href={`/login?redirect=${encodeURIComponent(`/checkout?eventId=${eventId}`)}`}
+                >
+                  sign in
+                </Link>{' '}
+                to confirm this booking.
+              </span>
+            </p>
+          )}
+
+          {error && (
+            <p role="alert" className="notice notice-error">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isSubmitting || !user}
+            className="btn btn-primary w-full py-3 text-[15px]"
+          >
+            {isSubmitting ? 'Confirming…' : `Confirm booking · ${formatINR(total)}`}
+          </button>
+          <p className="text-center text-xs text-ink-3">
+            This is a demo checkout. No payment is collected; confirming issues your tickets straight away.
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
@@ -235,9 +254,9 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-md mx-auto px-4 py-20 text-center text-slate-400 text-sm">
-          Loading checkout...
-        </div>
+        <main className="page max-w-3xl py-12" aria-busy="true">
+          <div className="skeleton h-72" />
+        </main>
       }
     >
       <CheckoutContent />

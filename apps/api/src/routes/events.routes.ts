@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { AppError } from '../errors';
 import { HoldSeatsSchema, ReleaseSeatsSchema } from '@repo/shared';
@@ -20,31 +21,38 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
       return res.status(200).json(JSON.parse(cached));
     }
 
+    // Events that have already started are no longer bookable, so they don't belong in the list
     const events = await prisma.event.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', startsAt: { gt: new Date() } },
       include: {
         venue: {
           select: { id: true, name: true, layout: true },
-        },
-        eventSeats: {
-          select: { status: true, holdExpiresAt: true, price: true },
         },
       },
       orderBy: { startsAt: 'asc' },
     });
 
-    const now = new Date();
+    // One aggregate query rather than pulling every seat row of every event into memory.
+    // A hold that has lapsed but not yet been swept counts as available.
+    const eventIds = events.map((e) => e.id);
+    const stats = eventIds.length
+      ? await prisma.$queryRaw<Array<{ eventId: string; total: bigint; available: bigint; minPrice: number | null }>>`
+          SELECT "eventId",
+                 COUNT(*) AS total,
+                 COUNT(*) FILTER (
+                   WHERE status = 'AVAILABLE'::"SeatStatus"
+                      OR (status = 'HELD'::"SeatStatus" AND "holdExpiresAt" < NOW())
+                 ) AS available,
+                 MIN(price) AS "minPrice"
+          FROM "EventSeat"
+          WHERE "eventId" IN (${Prisma.join(eventIds)})
+          GROUP BY "eventId"
+        `
+      : [];
+    const statsByEvent = new Map(stats.map((r) => [r.eventId, r]));
+
     const eventsWithStats = events.map((event) => {
-      const totalSeats = event.eventSeats.length;
-      const availableCount = event.eventSeats.filter(
-        (es) =>
-          es.status === 'AVAILABLE' ||
-          (es.status === 'HELD' && es.holdExpiresAt && new Date(es.holdExpiresAt) < now)
-      ).length;
-
-      const prices = event.eventSeats.map((es) => es.price);
-      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-
+      const st = statsByEvent.get(event.id);
       return {
         id: event.id,
         title: event.title,
@@ -52,9 +60,9 @@ eventsRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
         startsAt: event.startsAt,
         status: event.status,
         venue: event.venue,
-        totalSeats,
-        availableSeats: availableCount,
-        minPrice,
+        totalSeats: Number(st?.total ?? 0),
+        availableSeats: Number(st?.available ?? 0),
+        minPrice: st?.minPrice ?? 0,
       };
     });
 
@@ -78,7 +86,7 @@ eventsRouter.get('/active-hold', async (req: Request, res: Response, next: NextF
     }
 
     const now = new Date();
-    const heldSeats = await prisma.eventSeat.findMany({
+    let heldSeats = await prisma.eventSeat.findMany({
       where: {
         heldByUserId: userId,
         status: 'HELD',
@@ -106,7 +114,11 @@ eventsRouter.get('/active-hold', async (req: Request, res: Response, next: NextF
       return res.status(200).json({ hold: null });
     }
 
-    const event = heldSeats[0]!.event;
+    // Holds are limited to one event at a time, but defend against legacy rows from before that
+    // rule by describing only the event with the latest-expiring hold.
+    const latest = heldSeats.reduce((a, b) => (a.holdExpiresAt! >= b.holdExpiresAt! ? a : b));
+    const event = latest.event;
+    heldSeats = heldSeats.filter((s) => s.eventId === event.id);
     const earliestExpiry = heldSeats.reduce((earliest, s) => {
       if (!s.holdExpiresAt) return earliest;
       return earliest
@@ -265,6 +277,10 @@ eventsRouter.post(
         });
       }
 
+      for (const [otherEventId, otherSeatIds] of Object.entries(result.releasedElsewhere)) {
+        broadcastSeatsReleased(otherEventId, { seatIds: otherSeatIds });
+      }
+
       redisConnection.del(CACHE_KEY_PUBLISHED_EVENTS).catch(() => null);
 
       res.status(200).json(result);
@@ -291,10 +307,11 @@ eventsRouter.post(
         userId,
       });
 
-      // Broadcast real-time seat release
-      broadcastSeatsReleased(eventId, {
-        seatIds,
-      });
+      // Only announce seats that were actually ours to release; echoing the request would let a
+      // client make other people's held or sold seats look free on everyone's map.
+      if (result.releasedSeatIds.length > 0) {
+        broadcastSeatsReleased(eventId, { seatIds: result.releasedSeatIds });
+      }
 
       redisConnection.del(CACHE_KEY_PUBLISHED_EVENTS).catch(() => null);
 

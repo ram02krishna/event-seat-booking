@@ -42,14 +42,12 @@ export function useEventSocket(eventId: string) {
       socket.emit('join:event', eventId);
     };
 
-    if (socket.connected) {
-      joinRoom();
-    } else {
-      socket.on('connect', joinRoom);
-    }
+    // 'connect' fires on the first connection and on every reconnect, so this covers both
+    if (socket.connected) joinRoom();
+    socket.on('connect', joinRoom);
 
+    // Anything that happened while we were disconnected was missed, so refetch on reconnect
     const handleReconnect = () => {
-      socket.emit('join:event', eventId);
       queryClient.invalidateQueries({ queryKey: ['events', eventId, 'seats'] });
     };
 
@@ -57,6 +55,9 @@ export function useEventSocket(eventId: string) {
 
     // Real-time seat updates
     const onSeatsHeld = (data: SeatPayload) => {
+      // Work out whether this hold is ours, so our own seats never render as "held by someone else"
+      const me = queryClient.getQueryData<{ user?: { id: string } }>(['auth', 'me'])?.user?.id;
+      const mine = !!me && data.heldByUserId === me;
       queryClient.setQueryData(
         ['events', eventId, 'seats'],
         (old: { eventId: string; venue: any; seats: SeatData[] } | undefined) => {
@@ -69,6 +70,7 @@ export function useEventSocket(eventId: string) {
                 return {
                   ...seat,
                   status: 'HELD' as const,
+                  isHeldByMe: mine,
                   holdExpiresAt: data.holdExpiresAt || null,
                 };
               }

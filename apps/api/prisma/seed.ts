@@ -103,8 +103,8 @@ async function main() {
   // 1. Dolby Atmos Theater
   await createVenueWithEvent(
     'THEATER_DOLBY',
-    'Neon Horizon: Dolby Atmos 4K Laser Screening',
-    'Experience cinematic excellence with 64-channel spatial sound, laser projection, and ultra-plush recliner stalls.',
+    'Midnight Screening: The Last Monsoon',
+    'A late-night screening of the award-winning drama in Dolby Atmos, with recliner seating up front.',
     7,
     19,
     45
@@ -113,8 +113,8 @@ async function main() {
   // 2. Corporate Conference Hall
   await createVenueWithEvent(
     'CONFERENCE_HALL',
-    'Global AI & Distributed Systems Summit 2026',
-    'Keynote presentations from world-leading architects on high-concurrency systems, live telemetry, and AI models.',
+    'Distributed Systems India Summit 2026',
+    'A full day of talks on scaling databases, queues and real-time systems, with lunch and a hallway track.',
     14,
     9,
     30
@@ -123,8 +123,8 @@ async function main() {
   // 3. Grand Auditorium
   await createVenueWithEvent(
     'AUDITORIUM',
-    'Royal Philharmonic: Symphony of Lights & Sound',
-    'A masterclass orchestral performance in our acoustically engineered auditorium featuring a sunken orchestra pit and royal tiers.',
+    'City Philharmonic: An Evening of Rachmaninoff',
+    'The City Philharmonic performs the Second Piano Concerto and Symphonic Dances. One interval.',
     21,
     18,
     30
@@ -133,8 +133,8 @@ async function main() {
   // 4. Live Concert Arena
   await createVenueWithEvent(
     'ARENA',
-    'Supernova: Live Stadium Tour & Laser Rave',
-    'Electrifying arena festival featuring an extended catwalk runway, Golden Circle front pit, and multi-color laser rigs.',
+    'Indie Fest Live: Headline Night',
+    'Four bands, one stage and a runway through the front pit. Doors open two hours before the headliner.',
     28,
     20,
     0

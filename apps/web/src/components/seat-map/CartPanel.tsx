@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronUp, Clock, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { apiFetch } from '@/lib/api';
-import { Clock, Trash2, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { formatINR } from '@/lib/format';
+import { useCountdown, formatClock } from '@/hooks/useCountdown';
 
 interface CartPanelProps {
   eventId: string;
+  /** Called after anything that may have changed seat availability, so the map can refetch */
   onHoldSuccess?: () => void;
   onReleaseSuccess?: () => void;
 }
@@ -22,104 +25,70 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
     useCartStore();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isAuthRequired, setIsAuthRequired] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const { data: authData } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => apiFetch('/api/auth/me'),
+    retry: false,
+  });
+  const signedIn = !!authData?.user;
 
   const isHeld = heldSeatIds.length > 0 && !!holdExpiresAt;
-  const totalPriceCents = selectedSeats.reduce((acc, seat) => acc + seat.price, 0);
+  const total = selectedSeats.reduce((sum, s) => sum + s.price, 0);
+  const loginHref = `/login?redirect=${encodeURIComponent(`/events/${eventId}`)}`;
 
-  // Server-authoritative countdown timer
-  useEffect(() => {
-    if (!holdExpiresAt) {
-      setRemainingSeconds(null);
-      return;
-    }
+  const remaining = useCountdown(isHeld ? holdExpiresAt : null, () => {
+    clearHold();
+    setMessage('Your hold ran out and the seats were released.');
+    onReleaseSuccess?.();
+  });
+  const urgent = remaining !== null && remaining < 60;
 
-    function updateTimer() {
-      const expires = new Date(holdExpiresAt!).getTime();
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((expires - now) / 1000));
-      setRemainingSeconds(diff);
-
-      if (diff === 0) {
-        clearHold();
-        setErrorMessage('Hold expired! The seats have been released.');
-        onReleaseSuccess?.();
-      }
-    }
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [holdExpiresAt, clearHold, onReleaseSuccess]);
-
-  // Format seconds as MM:SS
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  function patchSeatCache(status: 'HELD' | 'AVAILABLE', expiresAt: string | null) {
+    const ids = new Set(selectedSeats.map((s) => s.id));
+    const rawIds = new Set(selectedSeats.map((s) => s.seatId));
+    queryClient.setQueryData(['events', eventId, 'seats'], (old: any) => {
+      if (!old?.seats) return old;
+      return {
+        ...old,
+        seats: old.seats.map((seat: any) =>
+          ids.has(seat.id) || rawIds.has(seat.seatId)
+            ? { ...seat, status, isHeldByMe: status === 'HELD', holdExpiresAt: expiresAt }
+            : seat,
+        ),
+      };
+    });
+  }
 
   async function handleHold() {
     if (selectedSeats.length === 0) return;
     setIsLoading(true);
-    setErrorMessage(null);
-
+    setMessage(null);
     try {
       const res = await apiFetch(`/api/events/${eventId}/hold`, {
         method: 'POST',
-        body: JSON.stringify({
-          seatIds: selectedSeats.map((s) => s.seatId),
-        }),
+        body: JSON.stringify({ seatIds: selectedSeats.map((s) => s.seatId) }),
       });
-
-      // Optimistically update seats cache instantly
-      queryClient.setQueryData(
-        ['events', eventId, 'seats'],
-        (old: any) => {
-          if (!old?.seats) return old;
-          const myIdSet = new Set(selectedSeats.map((s) => s.id));
-          const myRawSeatIdSet = new Set(selectedSeats.map((s) => s.seatId));
-          return {
-            ...old,
-            seats: old.seats.map((seat: any) => {
-              if (myIdSet.has(seat.id) || myRawSeatIdSet.has(seat.seatId)) {
-                return {
-                  ...seat,
-                  status: 'HELD',
-                  isHeldByMe: true,
-                  holdExpiresAt: res.holdExpiresAt,
-                };
-              }
-              return seat;
-            }),
-          };
-        }
-      );
-
+      patchSeatCache('HELD', res.holdExpiresAt);
       setHeldSeats(
         selectedSeats.map((s) => s.id),
         res.holdExpiresAt,
-        eventId
+        eventId,
       );
-      setIsAuthRequired(false);
+      setNeedsSignIn(false);
       onHoldSuccess?.();
     } catch (err: any) {
-      const msg = err.message || '';
-      const isAuth =
-        err.status === 401 ||
-        msg.toLowerCase().includes('sign in') ||
-        msg.toLowerCase().includes('authentication') ||
-        msg.toLowerCase().includes('session') ||
-        msg.toLowerCase().includes('unauthorized');
-
-      if (isAuth) {
-        setErrorMessage('Sign in required to hold seats. Your selection is saved!');
-        setIsAuthRequired(true);
+      if (err.status === 401) {
+        setNeedsSignIn(true);
+        setMessage('Sign in to hold seats. Your selection will be waiting for you.');
       } else {
-        setErrorMessage(msg || 'Failed to hold seats');
-        setIsAuthRequired(false);
+        setNeedsSignIn(false);
+        setMessage(err.message || 'Could not hold those seats.');
+        // Most failures here mean availability changed under us
+        onReleaseSuccess?.();
       }
     } finally {
       setIsLoading(false);
@@ -128,198 +97,169 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
 
   async function handleRelease() {
     setIsLoading(true);
-    setErrorMessage(null);
-
+    setMessage(null);
     try {
       await apiFetch(`/api/events/${eventId}/release`, {
         method: 'POST',
-        body: JSON.stringify({
-          seatIds: selectedSeats.map((s) => s.seatId),
-        }),
+        body: JSON.stringify({ seatIds: selectedSeats.map((s) => s.seatId) }),
       });
-
-      // Optimistically update seats cache instantly back to available
-      queryClient.setQueryData(
-        ['events', eventId, 'seats'],
-        (old: any) => {
-          if (!old?.seats) return old;
-          const myIdSet = new Set(selectedSeats.map((s) => s.id));
-          const myRawSeatIdSet = new Set(selectedSeats.map((s) => s.seatId));
-          return {
-            ...old,
-            seats: old.seats.map((seat: any) => {
-              if (myIdSet.has(seat.id) || myRawSeatIdSet.has(seat.seatId)) {
-                return {
-                  ...seat,
-                  status: 'AVAILABLE',
-                  isHeldByMe: false,
-                  holdExpiresAt: null,
-                };
-              }
-              return seat;
-            }),
-          };
-        }
-      );
-
+      patchSeatCache('AVAILABLE', null);
       clearHold();
       onReleaseSuccess?.();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to release seats');
+      setMessage(err.message || 'Could not release the seats.');
     } finally {
       setIsLoading(false);
     }
   }
 
-  if (selectedSeats.length === 0 && !isHeld) {
-    return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-        <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md text-xs text-slate-300">
-          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping inline-block" />
-          <span>Click any armchair to select • Atomic seat lock with zero double-booking</span>
-        </div>
-      </div>
-    );
-  }
+  const empty = selectedSeats.length === 0 && !isHeld;
+
+  const seatList = (
+    <ul className="divide-y divide-line">
+      {selectedSeats.map((seat) => (
+        <li key={seat.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+          <div className="min-w-0">
+            <p className="font-medium">
+              Row {seat.row}, seat {seat.number}
+            </p>
+            <p className="text-xs capitalize text-ink-3">{seat.tier.toLowerCase()}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="tabular-nums">{formatINR(seat.price)}</span>
+            {!isHeld && (
+              <button
+                type="button"
+                onClick={() => toggleSeat(seat)}
+                className="rounded-md p-1 text-ink-3 hover:bg-sunken hover:text-danger"
+                aria-label={`Remove row ${seat.row} seat ${seat.number}`}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+
+  const primaryAction = isHeld ? (
+    <button type="button" onClick={() => router.push(`/checkout?eventId=${eventId}`)} className="btn btn-primary w-full">
+      Continue to checkout
+    </button>
+  ) : needsSignIn || !signedIn ? (
+    <Link href={loginHref} className="btn btn-primary w-full">
+      Sign in to hold seats
+    </Link>
+  ) : (
+    <button type="button" onClick={handleHold} disabled={isLoading || selectedSeats.length === 0} className="btn btn-primary w-full">
+      {isLoading ? 'Holding…' : 'Hold seats for 5 minutes'}
+    </button>
+  );
+
+  const messageBlock = message && (
+    <p role="alert" className={`notice ${needsSignIn ? 'notice-warn' : 'notice-error'}`}>
+      {message}
+    </p>
+  );
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: 80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 80, opacity: 0 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:w-96 z-40 bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-xl p-5"
-      >
-        {/* Header: Title & Timer / Clear */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div>
-            <h3 className="font-semibold text-sm text-white">
-              {isHeld ? 'Held Seats' : 'Selected Seats'} ({selectedSeats.length}/6)
-            </h3>
-            <p className="text-xs text-slate-400">
-              {isHeld ? 'Locked for your checkout' : 'Pick up to 6 seats'}
-            </p>
-          </div>
-
-          {isHeld && remainingSeconds !== null ? (
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold ${
-                remainingSeconds < 60
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>{formatTime(remainingSeconds)}</span>
-            </div>
-          ) : (
-            <button
-              onClick={clearSelection}
-              className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear
-            </button>
-          )}
+    <>
+      {/* Desktop: sticky sidebar */}
+      <aside className="card hidden self-start p-5 lg:sticky lg:top-20 lg:block" aria-label="Your seats">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-xl font-semibold">{isHeld ? 'Seats on hold' : 'Your seats'}</h2>
+          <span className="text-xs tabular-nums text-ink-3">{selectedSeats.length} of 6</span>
         </div>
 
-        {/* Selected seats pills */}
-        <div className="max-h-36 overflow-y-auto py-3 space-y-1.5">
-          {selectedSeats.map((seat) => (
-            <div
-              key={seat.id}
-              className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800/60 text-xs"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-white">
-                  Row {seat.row}-{seat.number}
-                </span>
-                <span className="text-[10px] uppercase font-bold text-slate-400">
-                  {seat.tier}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-emerald-400 font-semibold">
-                  {formatINR(seat.price)}
-                </span>
-                {!isHeld && (
-                  <button
-                    onClick={() => toggleSeat(seat)}
-                    className="text-slate-500 hover:text-rose-400 transition-colors"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Total & Action */}
-        <div className="pt-3 border-t border-slate-800 space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Total Price:</span>
-            <span className="font-mono text-lg font-bold text-white">
-              {formatINR(totalPriceCents)}
+        {isHeld && remaining !== null && (
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium ${
+              urgent ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'
+            }`}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              Yours for <span className="tabular-nums">{formatClock(remaining)}</span>
             </span>
           </div>
+        )}
 
-          {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300 text-xs space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                <span className="font-medium">{errorMessage}</span>
-              </div>
-              {isAuthRequired && (
-                <button
-                  type="button"
-                  onClick={() => router.push(`/login?redirect=/events/${eventId}`)}
-                  className="w-full py-1.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-                >
-                  <span>Sign In to Continue</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+        {empty ? (
+          <p className="py-8 text-center text-sm text-ink-3">
+            Choose seats on the map.
+            <br />
+            You can book up to six at a time.
+          </p>
+        ) : (
+          <>
+            <div className="mt-2">{seatList}</div>
+            <div className="mt-2 flex items-baseline justify-between border-t border-line-strong pt-4">
+              <span className="text-sm text-ink-2">Total</span>
+              <span className="text-2xl font-semibold tabular-nums">{formatINR(total)}</span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {messageBlock}
+              {primaryAction}
+              {isHeld ? (
+                <button type="button" onClick={handleRelease} disabled={isLoading} className="btn btn-ghost btn-sm w-full">
+                  Release these seats
+                </button>
+              ) : (
+                <button type="button" onClick={clearSelection} className="btn btn-ghost btn-sm w-full">
+                  Clear selection
                 </button>
               )}
             </div>
-          )}
+          </>
+        )}
+        {empty && message && <div className="mt-2">{messageBlock}</div>}
+      </aside>
 
-          {!isHeld ? (
-            <button
-              onClick={handleHold}
-              disabled={isLoading || selectedSeats.length === 0}
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs tracking-wide shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <span>Locking seats...</span>
-              ) : (
-                <>
-                  <span>Hold Seats for 5 Minutes</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+      {/* Small screens: a bar pinned to the bottom so it never covers seats */}
+      <AnimatePresence>
+        {(!empty || message) && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-surface shadow-sheet lg:hidden"
+          >
+            <div className="mx-auto max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+              {expanded && !empty && <div className="mb-2 max-h-48 overflow-y-auto">{seatList}</div>}
+              {messageBlock && <div className="mb-2">{messageBlock}</div>}
+              {!empty && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((v) => !v)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    aria-expanded={expanded}
+                  >
+                    <ChevronUp className={`h-4 w-4 shrink-0 text-ink-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                    <span className="min-w-0">
+                      <span className="block text-lg font-semibold leading-tight tabular-nums">{formatINR(total)}</span>
+                      <span className="block truncate text-xs text-ink-3">
+                        {selectedSeats.length} seat{selectedSeats.length === 1 ? '' : 's'}
+                        {isHeld && remaining !== null && (
+                          <span className={urgent ? 'font-semibold text-danger' : ''}> · {formatClock(remaining)} left</span>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                  <div className="w-[190px] shrink-0">{primaryAction}</div>
+                </div>
               )}
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <button
-                onClick={() => router.push(`/checkout?eventId=${eventId}`)}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Proceed to Payment</span>
-              </button>
-
-              <button
-                onClick={handleRelease}
-                disabled={isLoading}
-                className="w-full py-1.5 text-slate-400 hover:text-slate-200 text-xs text-center transition-colors"
-              >
-                Release Seats
-              </button>
+              {isHeld && !empty && (
+                <button type="button" onClick={handleRelease} disabled={isLoading} className="mt-1 w-full py-1.5 text-xs text-ink-3 hover:text-ink">
+                  Release seats
+                </button>
+              )}
             </div>
-          )}
-        </div>
-      </motion.div>
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
