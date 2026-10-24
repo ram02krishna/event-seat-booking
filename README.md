@@ -182,11 +182,6 @@ event-seat-booking/
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 20+
-- pnpm (`npm install -g pnpm`)
-- PostgreSQL 16 and Redis (or Docker)
-
 ### 1. Clone & Install
 ```bash
 git clone https://github.com/ram02krishna/event-seat-booking.git
