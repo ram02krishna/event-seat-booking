@@ -148,7 +148,7 @@ function CheckoutContent() {
   const eventInfo = seatData?.event;
 
   return (
-    <main className="page max-w-3xl space-y-5 sm:space-y-6 py-6 sm:py-12">
+    <main className="page max-w-3xl space-y-5 sm:space-y-6 py-6 sm:py-12 pb-safe">
       <div className="space-y-2 sm:space-y-3">
         <Link
           href={`/events/${eventId}`}
@@ -158,7 +158,7 @@ function CheckoutContent() {
           Back to seat map
         </Link>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
-          <h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">Review your booking</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Review your booking</h1>
           {remaining !== null && (
             <span
               className={`inline-flex self-start sm:self-auto items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums ${

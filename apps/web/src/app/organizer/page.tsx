@@ -71,9 +71,9 @@ function rupeesToPaise(value: string, label: string): number {
 
 function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
   return (
-    <div className="card p-3.5 sm:p-5">
-      <p className="eyebrow text-[10px] sm:text-[11px]">{label}</p>
-      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+    <div className="card p-3 sm:p-5 min-w-0 overflow-hidden">
+      <p className="eyebrow text-[10px] sm:text-[11px] truncate">{label}</p>
+      <p className="mt-1 sm:mt-2 text-lg sm:text-3xl font-semibold tabular-nums tracking-tight break-all">{value}</p>
       {hint && <p className="mt-1 text-[11px] sm:text-xs text-ink-3 truncate">{hint}</p>}
     </div>
   );
@@ -383,10 +383,10 @@ export default function OrganizerDashboardPage() {
   const events = (data?.events ?? []).filter((e) => !q || e.title.toLowerCase().includes(q) || e.venueName.toLowerCase().includes(q));
 
   return (
-    <main className="page max-w-6xl space-y-8 sm:space-y-10 py-6 sm:py-12">
+    <main className="page max-w-6xl space-y-8 sm:space-y-10 py-6 sm:py-12 pb-safe">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="space-y-1">
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm sm:text-[15px] text-ink-2">Sales and seat occupancy, refreshed every few seconds.</p>
         </div>
         {!creating && (
@@ -397,7 +397,7 @@ export default function OrganizerDashboardPage() {
         )}
       </header>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Stat label="Revenue" value={isLoading ? '–' : formatINR(summary?.totalRevenueCents ?? 0)} hint="Confirmed orders" />
         <Stat label="Tickets sold" value={isLoading ? '–' : summary?.totalTicketsSold ?? 0} hint={`of ${summary?.totalSeats ?? 0} seats`} />
         <Stat label="Occupancy" value={isLoading ? '–' : `${summary?.overallOccupancyRate ?? 0}%`} hint="Across all events" />

@@ -112,7 +112,7 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
   const started = event?.startsAt ? new Date(event.startsAt).getTime() < Date.now() : false;
 
   return (
-    <main className="page max-w-7xl space-y-5 sm:space-y-6 py-5 pb-28 sm:py-8 lg:pb-8">
+    <main className="page max-w-7xl space-y-5 sm:space-y-6 py-5 pb-cart-mobile sm:py-8 lg:pb-8">
       <header className="space-y-2.5 sm:space-y-3">
         <div className="flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink">
@@ -166,8 +166,10 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
         <p className="notice notice-warn">This event has already started, so seats can no longer be booked.</p>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <SeatMap seats={seats} venueLayout={venue.layout} />
+      <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 w-full">
+          <SeatMap seats={seats} venueLayout={venue.layout} />
+        </div>
         <CartPanel eventId={eventId} onHoldSuccess={() => refetch()} onReleaseSuccess={() => refetch()} />
       </div>
     </main>

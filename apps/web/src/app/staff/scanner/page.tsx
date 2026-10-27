@@ -168,9 +168,9 @@ export default function StaffScannerPage() {
   const style = result ? RESULT_STYLE[result.status] : null;
 
   return (
-    <main className="page max-w-xl space-y-5 sm:space-y-6 py-6 sm:py-14">
+    <main className="page max-w-xl space-y-5 sm:space-y-6 py-6 sm:py-14 pb-safe">
       <header className="space-y-1.5 sm:space-y-2">
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">Gate check-in</h1>
+        <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight">Gate check-in</h1>
         <p className="text-sm sm:text-[15px] text-ink-2">Scan a ticket’s QR code, or type the ticket code if the camera can’t read it.</p>
       </header>
 

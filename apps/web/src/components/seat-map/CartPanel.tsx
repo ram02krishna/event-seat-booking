@@ -245,9 +245,9 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
               transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-              className="fixed inset-x-0 bottom-0 z-50 border-t border-line-strong bg-surface shadow-sheet lg:hidden"
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-line-strong bg-surface shadow-sheet lg:hidden pt-2.5"
             >
-              <div className="mx-auto max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5">
+              <div className="mx-auto max-w-lg px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                 {/* Pull handle indicator */}
                 <div
                   className="mx-auto mb-2 h-1 w-10 cursor-pointer rounded-full bg-line-strong hover:bg-ink-3 transition-colors"
@@ -256,7 +256,7 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
                 />
 
                 {expanded && !empty && (
-                  <div className="mb-3 max-h-56 overflow-y-auto pr-1">
+                  <div className="mb-3 max-h-[45dvh] sm:max-h-56 overflow-y-auto pr-1">
                     <div className="mb-2 flex items-center justify-between border-b border-line pb-1.5">
                       <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Your Selection</span>
                       <button

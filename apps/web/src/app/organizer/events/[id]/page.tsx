@@ -84,9 +84,9 @@ export default function EventAnalyticsPage({ params }: { params: Promise<{ id: s
   const { event, overview, checkIn, tiers, recentOrders } = data;
 
   const stat = (label: string, value: React.ReactNode, hint: string, bar?: number) => (
-    <div className="card p-3.5 sm:p-5">
-      <p className="eyebrow text-[10px] sm:text-[11px]">{label}</p>
-      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+    <div className="card p-3 sm:p-5 min-w-0 overflow-hidden">
+      <p className="eyebrow text-[10px] sm:text-[11px] truncate">{label}</p>
+      <p className="mt-1 sm:mt-2 text-lg sm:text-3xl font-semibold tabular-nums tracking-tight break-all">{value}</p>
       {bar !== undefined && (
         <div className="mt-2.5 sm:mt-3 h-1.5 overflow-hidden rounded-full bg-line">
           <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, bar)}%` }} />
@@ -97,7 +97,7 @@ export default function EventAnalyticsPage({ params }: { params: Promise<{ id: s
   );
 
   return (
-    <main className="page max-w-6xl space-y-6 sm:space-y-8 py-6 sm:py-12">
+    <main className="page max-w-6xl space-y-6 sm:space-y-8 py-6 sm:py-12 pb-safe">
       <header className="space-y-2.5 sm:space-y-3">
         <Link href="/organizer" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -106,7 +106,7 @@ export default function EventAnalyticsPage({ params }: { params: Promise<{ id: s
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="space-y-1.5 sm:space-y-2">
             {event.venueType && <VenueBadge type={event.venueType} />}
-            <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight">{event.title}</h1>
+            <h1 className="font-display text-xl sm:text-3xl md:text-4xl font-bold tracking-tight">{event.title}</h1>
             <p className="text-xs sm:text-sm text-ink-2">
               {event.venueName} · {formatEventDateTime(event.startsAt)}
             </p>

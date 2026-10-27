@@ -153,15 +153,15 @@ export default function HomePage() {
   }
 
   return (
-    <main className="page max-w-5xl space-y-6 sm:space-y-8 py-6 sm:py-14">
+    <main className="page max-w-5xl space-y-6 sm:space-y-8 py-6 sm:py-14 pb-safe">
       {holdData?.hold && <ActiveHoldBanner hold={holdData.hold} onReleased={() => refetchHold()} />}
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5 sm:space-y-2">
-          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
             Upcoming events
           </h1>
-          <p className="max-w-md text-sm sm:text-[15px] text-ink-2">
+          <p className="max-w-md text-[13px] sm:text-[15px] text-ink-2 leading-relaxed">
             Choose your own seats from the live map. Seats you pick are held for five minutes while you check out.
           </p>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Minus, Move, Plus, RotateCcw } from 'lucide-react';
 import { useCartStore, SeatItem } from '@/store/cartStore';
 import { formatINR } from '@/lib/format';
 
@@ -101,14 +101,97 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   const flashTimer = useRef<number | undefined>(undefined);
   const mapScrollRef = useRef<HTMLDivElement>(null);
 
+  // Scrolling & dragging state:
+  // - Touch devices (smartphones/tablets): utilize native, hardware-accelerated touch scrolling via `touch-action: pan-x pan-y`
+  // - Desktop mouse: support click-and-drag panning
+  const isMouseDownRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const justDraggedRef = useRef(false);
+  const startPosRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const isScrollingRef = useRef(false);
+  const scrollTimerRef = useRef<number | undefined>(undefined);
+  const [isDraggingState, setIsDraggingState] = useState(false);
+
+  const handleScroll = () => {
+    isScrollingRef.current = true;
+    window.clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = window.setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 150);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only capture primary mouse button for desktop drag-to-pan
+    // Touch interactions pan smoothly and natively via touch-action: pan-x pan-y
+    if (e.pointerType === 'mouse' && e.button === 0) {
+      if (!mapScrollRef.current) return;
+      isMouseDownRef.current = true;
+      isDraggingRef.current = false;
+      startPosRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: mapScrollRef.current.scrollLeft,
+        scrollTop: mapScrollRef.current.scrollTop,
+      };
+      try {
+        mapScrollRef.current.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && isMouseDownRef.current && mapScrollRef.current) {
+      const dx = e.clientX - startPosRef.current.x;
+      const dy = e.clientY - startPosRef.current.y;
+
+      if (!isDraggingRef.current && Math.hypot(dx, dy) > 4) {
+        isDraggingRef.current = true;
+        setIsDraggingState(true);
+      }
+
+      if (isDraggingRef.current) {
+        mapScrollRef.current.scrollLeft = startPosRef.current.scrollLeft - dx;
+        mapScrollRef.current.scrollTop = startPosRef.current.scrollTop - dy;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') {
+      isMouseDownRef.current = false;
+      if (isDraggingRef.current) {
+        justDraggedRef.current = true;
+        isDraggingRef.current = false;
+        setIsDraggingState(false);
+        try {
+          if (mapScrollRef.current?.hasPointerCapture(e.pointerId)) {
+            mapScrollRef.current.releasePointerCapture(e.pointerId);
+          }
+        } catch {
+          // ignore
+        }
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 150);
+      }
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    handlePointerUp(e);
+  };
+
   function showFlash(message: string) {
     setFlash(message);
     window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 3500);
   }
-  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
-
-
+  useEffect(() => () => {
+    window.clearTimeout(flashTimer.current);
+    window.clearTimeout(scrollTimerRef.current);
+  }, []);
 
   function kindOf(seat: SeatData): SeatKind {
     if (seat.status === 'SOLD') return 'sold';
@@ -136,6 +219,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   }, [seatById]);
 
   function handleSeatActivate(seat: SeatData) {
+    if (isDraggingRef.current || justDraggedRef.current || isScrollingRef.current) return;
     setActiveSeat(seat);
     const kind = kindOf(seat);
     if (kind === 'sold' || kind === 'held') return;
@@ -195,14 +279,25 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
     return { stage, x0, x1, y0, y1, tiers: orderedTiers, rows: Array.from(rows.entries()) };
   }, [seats, venueLayout]);
 
-  // Center the seat map horizontally on mount so mobile and small screen users see the stage right away
+  // Center the seat map horizontally on mount and zoom so mobile and small screen users see the stage right away
   useEffect(() => {
-    if (mapScrollRef.current) {
-      const el = mapScrollRef.current;
-      const targetScroll = (el.scrollWidth - el.clientWidth) / 2;
-      el.scrollLeft = Math.max(0, targetScroll);
-    }
-  }, [geometry]);
+    const center = () => {
+      if (mapScrollRef.current) {
+        const el = mapScrollRef.current;
+        const targetScroll = (el.scrollWidth - el.clientWidth) / 2;
+        if (targetScroll > 0) {
+          el.scrollLeft = targetScroll;
+        }
+      }
+    };
+    center();
+    const raf = requestAnimationFrame(center);
+    const timer = setTimeout(center, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [geometry, zoom]);
 
   const { stage, x0, x1, y0, y1 } = geometry;
   const cx = stage.x + stage.width / 2;
@@ -214,7 +309,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   const activeKind = activeSeat ? kindOf(activeSeat) : null;
 
   return (
-    <div className="card p-3 sm:p-5">
+    <div className="card w-full min-w-0 overflow-hidden p-3 sm:p-5">
       {/* Tier filter + zoom */}
       <div className="mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div
@@ -256,7 +351,10 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2">
-          <span className="text-[11px] text-ink-3 sm:hidden">Swipe map to pan</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-ink-3 sm:hidden">
+            <Move className="h-3 w-3" />
+            Swipe map to pan
+          </span>
           <div className="flex items-center rounded-lg border border-line-strong bg-surface" role="group" aria-label="Zoom">
             <button
               type="button"
@@ -294,13 +392,29 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
       {/* Map. Zoom changes the drawn size, so scrolling extents stay correct. */}
       <div
         ref={mapScrollRef}
-        className="max-h-[68vh] sm:max-h-[72vh] overflow-auto overscroll-contain rounded-lg border border-line bg-sunken/50 touch-pan-x touch-pan-y"
+        onScroll={handleScroll}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        style={{
+          cursor: isDraggingState ? 'grabbing' : 'grab',
+          touchAction: 'pan-x pan-y',
+          WebkitOverflowScrolling: 'touch',
+        }}
+        className="w-full min-w-0 max-w-full max-h-[65dvh] sm:max-h-[70dvh] overflow-x-auto overflow-y-auto overscroll-contain rounded-lg border border-line bg-sunken/50 select-none touch-pan-x touch-pan-y"
       >
         <svg
           viewBox={`${x0} ${y0} ${x1 - x0} ${y1 - y0}`}
           role="group"
           aria-label="Seat map"
-          style={{ width: `${zoom * 100}%`, minWidth: `${Math.round(680 * zoom)}px`, height: 'auto', display: 'block' }}
+          style={{
+            width: `${zoom * 100}%`,
+            minWidth: `${Math.round(680 * zoom)}px`,
+            height: 'auto',
+            display: 'block',
+            touchAction: 'pan-x pan-y',
+          }}
         >
           {/* Stage / screen */}
           {venueType === 'THEATER_DOLBY' ? (
@@ -417,9 +531,14 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 aria-pressed={kind === 'selected'}
                 aria-disabled={!interactive}
                 opacity={dim ? 0.22 : 1}
-                style={{ cursor: interactive ? 'pointer' : 'not-allowed', transition: 'opacity 140ms ease' }}
+                style={{
+                  cursor: isDraggingState ? 'grabbing' : interactive ? 'pointer' : 'not-allowed',
+                  transition: 'opacity 140ms ease',
+                }}
                 onClick={() => handleSeatActivate(seat)}
-                onMouseEnter={() => setActiveSeat(seat)}
+                onMouseEnter={() => {
+                  if (!isDraggingRef.current && !isMouseDownRef.current) setActiveSeat(seat);
+                }}
                 onFocus={() => setActiveSeat(seat)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {

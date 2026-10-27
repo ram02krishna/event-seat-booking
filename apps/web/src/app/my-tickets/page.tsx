@@ -207,10 +207,10 @@ export default function MyTicketsPage() {
   const loading = authLoading || (!!user && isLoading);
 
   return (
-    <main className="page max-w-4xl space-y-8 py-10 sm:py-14">
+    <main className="page max-w-4xl space-y-8 py-8 sm:py-14 pb-safe">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">My tickets</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">My tickets</h1>
           <p className="text-[15px] text-ink-2">Show the QR code at the door. Staff scan it once.</p>
         </div>
         {user && hasOrders && (
@@ -283,7 +283,7 @@ export default function MyTicketsPage() {
           onClick={() => setEnlarged(null)}
         >
           <div
-            className="relative w-full max-w-sm space-y-3.5 sm:space-y-4 rounded-2xl bg-surface p-5 sm:p-6 text-center shadow-lift max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-sm space-y-3.5 sm:space-y-4 rounded-2xl bg-surface p-4 sm:p-6 text-center shadow-lift max-h-[92dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -299,9 +299,9 @@ export default function MyTicketsPage() {
               <p className="font-display text-lg sm:text-xl font-semibold">{enlarged.eventTitle}</p>
               <p className="text-sm font-medium text-accent">{enlarged.seatLabel}</p>
             </div>
-            <div className="mx-auto inline-block rounded-xl bg-white p-2.5 sm:p-3 ring-1 ring-black/10">
+              <div className="mx-auto inline-block rounded-xl bg-white p-2 sm:p-3 ring-1 ring-black/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={enlarged.qrDataUrl} alt="Ticket QR code" className="h-52 w-52 sm:h-60 sm:w-60 max-w-full aspect-square" />
+              <img src={enlarged.qrDataUrl} alt="Ticket QR code" className="h-48 w-48 sm:h-60 sm:w-60 max-w-full aspect-square" />
             </div>
             <p className="text-xs text-ink-3">Hold your screen brightness up and show this to the scanner at the gate.</p>
           </div>
