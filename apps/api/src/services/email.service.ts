@@ -26,7 +26,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
 
   const viewTicketsUrl =
     config.CLIENT_TICKETS_URL ||
-    'https://event-seat-booking-psi.vercel.app/my-tickets';
+    'https://seat-lock.vercel.app/my-tickets';
 
   const formattedDate = new Date(startsAt).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -168,7 +168,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
     const fromEmail =
       config.RESEND_TICKETS_FROM_EMAIL ||
       config.RESEND_FROM_EMAIL ||
-      'Event Seat Booking <security@ram02krishna.me>';
+      'SeatLock <security@ram02krishna.me>';
 
     // Send email with inline QR code URL only (no separate PNG attachments so Gmail won't show attachment cards)
     const result = await resend.emails.send({
@@ -269,7 +269,7 @@ export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmai
   try {
     const overrideEmail = config.RESEND_OVERRIDE_EMAIL;
     const recipient = overrideEmail || (toEmail.endsWith('@example.com') ? 'delivered@resend.dev' : toEmail);
-    const fromEmail = config.RESEND_FROM_EMAIL || 'Event Seat Booking <security@ram02krishna.me>';
+    const fromEmail = config.RESEND_FROM_EMAIL || 'SeatLock <security@ram02krishna.me>';
 
     const result = await resend.emails.send({
       from: fromEmail,

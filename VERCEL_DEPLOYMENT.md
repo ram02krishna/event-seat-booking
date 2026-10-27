@@ -20,7 +20,7 @@ This monorepo is fully configured and ready to deploy on [Vercel](https://vercel
 
 1. Push your repository to GitHub / GitLab / Bitbucket.
 2. Go to [Vercel Dashboard](https://vercel.com/new) and click **"Add New Project"**.
-3. Import your repository: `event-seat-booking`.
+3. Import your repository: `seat-lock`.
 4. In the **Project Configuration** screen:
    - **Framework Preset**: `Next.js`
    - **Root Directory**: Click *Edit* and select `apps/web`.
@@ -39,7 +39,7 @@ This monorepo is fully configured and ready to deploy on [Vercel](https://vercel
 ### Method B: Deploy from Repository Root (`/`)
 
 If you prefer leaving the Vercel Root Directory set to `./` (root of the monorepo):
-- The repository includes a root [vercel.json](file:///d:/WorkSpace/event-seat-booking/vercel.json) that automatically routes the build to `apps/web`:
+- The repository includes a root [vercel.json](./vercel.json) that automatically routes the build to `apps/web`:
   - `buildCommand`: `pnpm --filter @repo/shared build && pnpm --filter web build`
   - `outputDirectory`: `apps/web/.next`
 

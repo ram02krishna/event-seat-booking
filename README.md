@@ -147,7 +147,7 @@ The concurrency engine was benchmarked with 1,000 rapid concurrent hold requests
 ## Repository Structure
 
 ```
-event-seat-booking/
+seat-lock/
 ├── apps/
 │   ├── api/                    # Express backend
 │   │   ├── prisma/             # Schema, migrations, seed script
@@ -184,8 +184,8 @@ event-seat-booking/
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/ram02krishna/event-seat-booking.git
-cd event-seat-booking
+git clone https://github.com/ram02krishna/seat-lock.git
+cd seat-lock
 pnpm install
 ```
 
@@ -198,7 +198,7 @@ cp apps/api/.env.example apps/api/.env
 
 Ensure your `DATABASE_URL` and `REDIS_URL` are reachable:
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/event_seat_booking?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/seat_lock?schema=public"
 REDIS_URL="redis://localhost:6379"
 JWT_SECRET="supersecretdevkey1234567890_min32chars"
 ```
@@ -318,5 +318,5 @@ pnpm --filter api run prisma:seed
 
 ## Deployment
 
-Detailed instructions for deploying the frontend on **Vercel** and connecting it to the production API server are documented in [VERCEL_DEPLOYMENT.md](file:///d:/WorkSpace/event-seat-booking/VERCEL_DEPLOYMENT.md).
+Detailed instructions for deploying the frontend on **Vercel** and connecting it to the production API server are documented in [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md).
 
