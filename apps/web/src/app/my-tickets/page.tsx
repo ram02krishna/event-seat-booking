@@ -62,32 +62,32 @@ function TicketCard({
       <button
         type="button"
         onClick={onEnlarge}
-        className="group relative m-3 shrink-0 self-start rounded-md bg-white p-1.5 ring-1 ring-black/10 transition hover:ring-accent"
+        className="group relative m-2.5 sm:m-3 shrink-0 self-start rounded-md bg-white p-1 sm:p-1.5 ring-1 ring-black/10 transition hover:ring-accent"
         aria-label={`Enlarge QR code for row ${ticket.seat.row}, seat ${ticket.seat.number}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={ticket.qrDataUrl} alt="" className={`h-[88px] w-[88px] ${used ? 'opacity-30' : ''}`} />
+        <img src={ticket.qrDataUrl} alt="" className={`h-[76px] w-[76px] sm:h-[88px] sm:w-[88px] ${used ? 'opacity-30' : ''}`} />
         <span className="no-print absolute inset-0 flex items-center justify-center rounded-md bg-black/0 text-transparent transition group-hover:bg-black/55 group-hover:text-white">
           <QrCode className="h-5 w-5" />
         </span>
       </button>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-between border-l border-dashed border-line-strong py-3 pl-4 pr-3">
+      <div className="flex min-w-0 flex-1 flex-col justify-between border-l border-dashed border-line-strong py-2.5 pl-3 pr-2.5 sm:py-3 sm:pl-4 sm:pr-3">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <span className="eyebrow capitalize">{ticket.seat.tier.toLowerCase()}</span>
-            <span className={`text-xs font-semibold ${used ? 'text-ink-3' : 'text-ok'}`}>{used ? 'Used' : 'Valid'}</span>
+            <span className="eyebrow text-[10px] sm:text-[11px] capitalize">{ticket.seat.tier.toLowerCase()}</span>
+            <span className={`text-[11px] sm:text-xs font-semibold ${used ? 'text-ink-3' : 'text-ok'}`}>{used ? 'Used' : 'Valid'}</span>
           </div>
-          <p className="mt-1 font-display text-xl font-semibold leading-tight">
+          <p className="mt-0.5 sm:mt-1 font-display text-base sm:text-xl font-semibold leading-tight">
             Row {ticket.seat.row}, seat {ticket.seat.number}
           </p>
-          <p className="text-xs tabular-nums text-ink-3">{formatINR(ticket.price)}</p>
+          <p className="text-xs tabular-nums text-ink-3 font-medium">{formatINR(ticket.price)}</p>
         </div>
 
         <button
           type="button"
           onClick={onCopy}
-          className="no-print mt-3 inline-flex items-center gap-1.5 self-start text-xs font-medium text-ink-2 hover:text-accent"
+          className="no-print mt-2 sm:mt-3 inline-flex items-center gap-1.5 self-start text-xs font-medium text-ink-2 hover:text-accent"
           title="Copy the ticket code, handy if the QR won’t scan"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-ok" /> : <Copy className="h-3.5 w-3.5" />}
@@ -111,29 +111,29 @@ function OrderBlock({
 }) {
   return (
     <article className="card overflow-hidden">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
-        <div className="space-y-1.5">
-          <h3 className="font-display text-2xl font-semibold leading-tight tracking-tight">{order.event.title}</h3>
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 border-b border-line p-4 sm:p-5">
+        <div className="space-y-1 sm:space-y-1.5 min-w-0">
+          <h3 className="font-display text-xl sm:text-2xl font-semibold leading-tight tracking-tight">{order.event.title}</h3>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-[13px] text-ink-2">
             <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-ink-3" />
+              <Calendar className="h-3.5 w-3.5 text-ink-3 shrink-0" />
               {formatEventDateTime(order.event.startsAt)}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-ink-3" />
+              <MapPin className="h-3.5 w-3.5 text-ink-3 shrink-0" />
               {order.event.venue.name}
             </span>
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-semibold tabular-nums">{formatINR(order.totalCents)}</p>
-          <p className="text-xs text-ink-3">
+        <div className="flex items-baseline justify-between sm:block sm:text-right border-t border-line/60 pt-2 sm:border-0 sm:pt-0">
+          <p className="text-base sm:text-lg font-semibold tabular-nums">{formatINR(order.totalCents)}</p>
+          <p className="text-[11px] sm:text-xs text-ink-3">
             Order {order.id.slice(0, 8).toUpperCase()} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
           </p>
         </div>
       </header>
 
-      <ul className="grid gap-3 p-4 sm:grid-cols-2">
+      <ul className="grid gap-2.5 sm:gap-3 p-3.5 sm:p-4 sm:grid-cols-2">
         {order.tickets.map((t) => (
           <TicketCard
             key={t.id}
@@ -279,29 +279,29 @@ export default function MyTicketsPage() {
           role="dialog"
           aria-modal="true"
           aria-label={`QR code for ${enlarged.seatLabel}`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm"
           onClick={() => setEnlarged(null)}
         >
           <div
-            className="relative w-full max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center shadow-lift"
+            className="relative w-full max-w-sm space-y-3.5 sm:space-y-4 rounded-2xl bg-surface p-5 sm:p-6 text-center shadow-lift max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setEnlarged(null)}
-              className="absolute right-3 top-3 rounded-md p-1.5 text-ink-3 hover:bg-sunken hover:text-ink"
+              className="absolute right-3 top-3 rounded-md p-1.5 text-ink-3 hover:bg-sunken hover:text-ink min-h-[36px] min-w-[36px] flex items-center justify-center"
               aria-label="Close"
               autoFocus
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="space-y-0.5 pt-2">
-              <p className="font-display text-xl font-semibold">{enlarged.eventTitle}</p>
+            <div className="space-y-0.5 pt-1 sm:pt-2">
+              <p className="font-display text-lg sm:text-xl font-semibold">{enlarged.eventTitle}</p>
               <p className="text-sm font-medium text-accent">{enlarged.seatLabel}</p>
             </div>
-            <div className="mx-auto inline-block rounded-xl bg-white p-3 ring-1 ring-black/10">
+            <div className="mx-auto inline-block rounded-xl bg-white p-2.5 sm:p-3 ring-1 ring-black/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={enlarged.qrDataUrl} alt="Ticket QR code" className="h-60 w-60" />
+              <img src={enlarged.qrDataUrl} alt="Ticket QR code" className="h-52 w-52 sm:h-60 sm:w-60 max-w-full aspect-square" />
             </div>
             <p className="text-xs text-ink-3">Hold your screen brightness up and show this to the scanner at the gate.</p>
           </div>

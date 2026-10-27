@@ -74,7 +74,7 @@ function CodeField({ value, onChange }: { value: string; onChange: (v: string) =
         required
         autoFocus
         placeholder="000000"
-        className="field text-center text-2xl font-semibold tracking-[0.5em] tabular-nums"
+        className="field text-center text-xl sm:text-2xl font-semibold tracking-[0.25em] sm:tracking-[0.5em] tabular-nums"
       />
     </div>
   );
@@ -214,7 +214,7 @@ function LoginForm() {
       <button
         type="button"
         onClick={() => switchMode(mode === 'register-otp' ? 'register' : 'login')}
-        className="inline-flex items-center gap-1 text-ink-3 hover:text-ink"
+        className="inline-flex items-center gap-1 text-ink-3 hover:text-ink min-h-[36px]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {mode === 'register-otp' ? 'Change email' : 'Back to sign in'}
@@ -223,7 +223,7 @@ function LoginForm() {
         type="button"
         disabled={countdown > 0 || isLoading}
         onClick={handleResend}
-        className="font-medium text-accent hover:underline disabled:text-ink-3 disabled:no-underline"
+        className="font-medium text-accent hover:underline disabled:text-ink-3 disabled:no-underline min-h-[36px] flex items-center"
       >
         {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
       </button>
@@ -231,24 +231,24 @@ function LoginForm() {
   );
 
   const devHint = devOtp && (
-    <p className="notice notice-warn justify-between">
+    <p className="notice notice-warn justify-between items-center">
       <span>
         Dev mode code: <strong className="tabular-nums">{devOtp}</strong>
       </span>
-      <button type="button" className="font-semibold underline" onClick={() => setOtp(devOtp)}>
+      <button type="button" className="font-semibold underline ml-2 shrink-0" onClick={() => setOtp(devOtp)}>
         Fill
       </button>
     </p>
   );
 
   return (
-    <main className="page max-w-md py-12 sm:py-20">
-      <div className="mb-8 space-y-2 text-center">
-        <h1 className="font-display text-4xl font-semibold tracking-tight">{COPY[mode].title}</h1>
-        <p className="text-[15px] text-ink-2">{COPY[mode].blurb(email)}</p>
+    <main className="page max-w-md py-8 sm:py-20">
+      <div className="mb-6 sm:mb-8 space-y-1.5 sm:space-y-2 text-center">
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">{COPY[mode].title}</h1>
+        <p className="text-sm sm:text-[15px] text-ink-2">{COPY[mode].blurb(email)}</p>
       </div>
 
-      <div className="card space-y-5 p-6 sm:p-7">
+      <div className="card space-y-4 sm:space-y-5 p-5 sm:p-7">
         {(mode === 'login' || mode === 'register') && (
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1" role="tablist">
             {(['login', 'register'] as const).map((m) => (
@@ -258,7 +258,7 @@ function LoginForm() {
                 role="tab"
                 aria-selected={mode === m}
                 onClick={() => switchMode(m)}
-                className={`rounded-md py-2 text-sm font-semibold transition ${
+                className={`rounded-md py-2.5 text-sm font-semibold transition min-h-[42px] ${
                   mode === m ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'
                 }`}
               >

@@ -71,10 +71,10 @@ function rupeesToPaise(value: string, label: string): number {
 
 function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
   return (
-    <div className="card p-5">
-      <p className="eyebrow">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
-      {hint && <p className="mt-1 text-xs text-ink-3">{hint}</p>}
+    <div className="card p-3.5 sm:p-5">
+      <p className="eyebrow text-[10px] sm:text-[11px]">{label}</p>
+      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+      {hint && <p className="mt-1 text-[11px] sm:text-xs text-ink-3 truncate">{hint}</p>}
     </div>
   );
 }
@@ -383,21 +383,21 @@ export default function OrganizerDashboardPage() {
   const events = (data?.events ?? []).filter((e) => !q || e.title.toLowerCase().includes(q) || e.venueName.toLowerCase().includes(q));
 
   return (
-    <main className="page max-w-6xl space-y-10 py-8 sm:py-12">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="page max-w-6xl space-y-8 sm:space-y-10 py-6 sm:py-12">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="space-y-1">
-          <h1 className="font-display text-4xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-[15px] text-ink-2">Sales and seat occupancy, refreshed every few seconds.</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm sm:text-[15px] text-ink-2">Sales and seat occupancy, refreshed every few seconds.</p>
         </div>
         {!creating && (
-          <button type="button" onClick={() => setCreating(true)} className="btn btn-primary">
+          <button type="button" onClick={() => setCreating(true)} className="btn btn-primary self-start sm:self-auto">
             <Plus className="h-4 w-4" />
             New event
           </button>
         )}
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <Stat label="Revenue" value={isLoading ? '–' : formatINR(summary?.totalRevenueCents ?? 0)} hint="Confirmed orders" />
         <Stat label="Tickets sold" value={isLoading ? '–' : summary?.totalTicketsSold ?? 0} hint={`of ${summary?.totalSeats ?? 0} seats`} />
         <Stat label="Occupancy" value={isLoading ? '–' : `${summary?.overallOccupancyRate ?? 0}%`} hint="Across all events" />
@@ -407,8 +407,8 @@ export default function OrganizerDashboardPage() {
       {creating && <CreateEventForm onDone={() => setCreating(false)} />}
 
       <section className="space-y-4" aria-labelledby="events-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="events-heading" className="font-display text-2xl font-semibold">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <h2 id="events-heading" className="font-display text-xl sm:text-2xl font-semibold">
             Events
           </h2>
           <div className="relative w-full sm:w-64">
@@ -420,33 +420,33 @@ export default function OrganizerDashboardPage() {
         {isLoading ? (
           <div className="skeleton h-40" />
         ) : events.length === 0 ? (
-          <p className="card p-8 text-center text-sm text-ink-3">{data?.events.length ? 'No events match your search.' : 'No events yet. Create the first one.'}</p>
+          <p className="card p-6 sm:p-8 text-center text-sm text-ink-3">{data?.events.length ? 'No events match your search.' : 'No events yet. Create the first one.'}</p>
         ) : (
           <div className="card divide-y divide-line">
             {events.map((ev) => (
-              <div key={ev.id} className="grid gap-4 p-5 md:grid-cols-[1fr_220px_130px] md:items-center">
+              <div key={ev.id} className="grid gap-3 sm:gap-4 p-4 sm:p-5 md:grid-cols-[1fr_220px_130px] md:items-center">
                 <div className="min-w-0 space-y-1.5">
                   <VenueBadge type={ev.venueType} />
-                  <Link href={`/organizer/events/${ev.id}`} className="block truncate font-display text-xl font-semibold hover:text-accent">
+                  <Link href={`/organizer/events/${ev.id}`} className="block truncate font-display text-lg sm:text-xl font-semibold hover:text-accent">
                     {ev.title}
                   </Link>
-                  <p className="truncate text-[13px] text-ink-3">
+                  <p className="truncate text-xs sm:text-[13px] text-ink-3">
                     {ev.venueName} · {formatEventDateTime(ev.startsAt)}
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 border-t border-line/60 pt-2.5 md:border-0 md:pt-0">
                   <div className="flex h-1.5 overflow-hidden rounded-full bg-line" role="img" aria-label={`${ev.soldSeats} sold, ${ev.heldSeats} held, ${ev.availableSeats} available`}>
                     <div className="bg-accent" style={{ width: `${ev.totalSeats ? (ev.soldSeats / ev.totalSeats) * 100 : 0}%` }} />
                     <div className="bg-warn/60" style={{ width: `${ev.totalSeats ? (ev.heldSeats / ev.totalSeats) * 100 : 0}%` }} />
                   </div>
-                  <p className="text-xs tabular-nums text-ink-3">
+                  <p className="text-[11px] sm:text-xs tabular-nums text-ink-3">
                     {ev.soldSeats} sold · {ev.heldSeats} held · {ev.availableSeats} open
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 md:block md:text-right">
-                  <p className="font-semibold tabular-nums">{formatINR(ev.revenueCents)}</p>
+                <div className="flex items-center justify-between gap-3 md:block md:text-right border-t border-line/60 pt-2 md:border-0 md:pt-0">
+                  <p className="font-semibold tabular-nums text-sm sm:text-base">{formatINR(ev.revenueCents)}</p>
                   <Link href={`/events/${ev.id}`} className="text-xs text-ink-3 underline hover:text-ink">
                     Public page
                   </Link>
@@ -458,38 +458,60 @@ export default function OrganizerDashboardPage() {
       </section>
 
       <section className="space-y-4" aria-labelledby="orders-heading">
-        <h2 id="orders-heading" className="font-display text-2xl font-semibold">
+        <h2 id="orders-heading" className="font-display text-xl sm:text-2xl font-semibold">
           Recent orders
         </h2>
         {(data?.recentOrders ?? []).length === 0 ? (
-          <p className="card p-8 text-center text-sm text-ink-3">Orders will appear here as they come in.</p>
+          <p className="card p-6 sm:p-8 text-center text-sm text-ink-3">Orders will appear here as they come in.</p>
         ) : (
-          <div className="card overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-line text-xs text-ink-3">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Customer</th>
-                  <th className="px-3 py-3 font-medium">Event</th>
-                  <th className="px-3 py-3 text-right font-medium">Tickets</th>
-                  <th className="px-3 py-3 text-right font-medium">Total</th>
-                  <th className="px-5 py-3 text-right font-medium">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {data!.recentOrders.map((o) => (
-                  <tr key={o.id}>
-                    <td className="max-w-[200px] truncate px-5 py-3">{o.userEmail}</td>
-                    <td className="max-w-[220px] truncate px-3 py-3 text-ink-2">{o.eventTitle}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{o.ticketCount}</td>
-                    <td className="px-3 py-3 text-right font-medium tabular-nums">{formatINR(o.totalCents)}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-right text-ink-3">
-                      {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
-                    </td>
+          <>
+            {/* Mobile order cards */}
+            <div className="card divide-y divide-line sm:hidden">
+              {data!.recentOrders.map((o) => (
+                <div key={o.id} className="p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-ink truncate max-w-[180px]">{o.userEmail}</span>
+                    <span className="font-semibold tabular-nums text-ink">{formatINR(o.totalCents)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-ink-3">
+                    <span className="truncate max-w-[200px]">{o.eventTitle}</span>
+                    <span>{o.ticketCount} ticket{o.ticketCount === 1 ? '' : 's'}</span>
+                  </div>
+                  <p className="text-[11px] text-ink-3">
+                    {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="card overflow-x-auto hidden sm:block">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="border-b border-line text-xs text-ink-3">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Customer</th>
+                    <th className="px-3 py-3 font-medium">Event</th>
+                    <th className="px-3 py-3 text-right font-medium">Tickets</th>
+                    <th className="px-3 py-3 text-right font-medium">Total</th>
+                    <th className="px-5 py-3 text-right font-medium">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {data!.recentOrders.map((o) => (
+                    <tr key={o.id}>
+                      <td className="max-w-[200px] truncate px-5 py-3">{o.userEmail}</td>
+                      <td className="max-w-[220px] truncate px-3 py-3 text-ink-2">{o.eventTitle}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{o.ticketCount}</td>
+                      <td className="px-3 py-3 text-right font-medium tabular-nums">{formatINR(o.totalCents)}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right text-ink-3">
+                        {new Date(o.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 

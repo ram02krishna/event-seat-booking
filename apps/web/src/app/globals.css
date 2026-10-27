@@ -73,11 +73,14 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-padding-top: 5rem;
+    overflow-x: hidden;
   }
 
   body {
     @apply bg-bg text-ink font-sans antialiased;
-        line-height: 1.55;
+    line-height: 1.55;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1, h2, h3 {
@@ -112,7 +115,7 @@
 /* ------------------------------------------------------------------ */
 @layer components {
   .page {
-    @apply mx-auto w-full px-4 sm:px-6 animate-rise;
+    @apply mx-auto w-full px-3.5 sm:px-6 animate-rise;
   }
 
   .card {
@@ -126,7 +129,7 @@
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
       transition duration-150 select-none whitespace-nowrap
-      active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+      active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 touch-manipulation;
   }
   .btn-sm {
     @apply px-3 py-1.5 text-[13px];
@@ -144,8 +147,9 @@
     @apply bg-danger text-accent-fg hover:opacity-90;
   }
 
+  /* 16px on mobile prevents iOS Safari from forcibly auto-zooming inputs */
   .field {
-    @apply block w-full rounded-lg border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink
+    @apply block w-full rounded-lg border border-line-strong bg-surface px-3.5 py-2.5 text-base sm:text-sm text-ink
       placeholder:text-ink-3/70 transition-colors
       focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
   }
@@ -173,6 +177,16 @@
     );
     background-size: 200% 100%;
     @apply animate-shimmer rounded-lg;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 

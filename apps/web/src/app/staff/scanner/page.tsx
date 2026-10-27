@@ -168,27 +168,27 @@ export default function StaffScannerPage() {
   const style = result ? RESULT_STYLE[result.status] : null;
 
   return (
-    <main className="page max-w-xl space-y-6 py-10 sm:py-14">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold tracking-tight">Gate check-in</h1>
-        <p className="text-[15px] text-ink-2">Scan a ticket’s QR code, or type the ticket code if the camera can’t read it.</p>
+    <main className="page max-w-xl space-y-5 sm:space-y-6 py-6 sm:py-14">
+      <header className="space-y-1.5 sm:space-y-2">
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">Gate check-in</h1>
+        <p className="text-sm sm:text-[15px] text-ink-2">Scan a ticket’s QR code, or type the ticket code if the camera can’t read it.</p>
       </header>
 
       {result && style ? (
-        <section className={`rounded-xl border-2 p-6 ${style.box}`} role="alert">
+        <section className={`rounded-xl border-2 p-4 sm:p-6 ${style.box}`} role="alert">
           <div className="flex items-center gap-3">
             {style.icon}
             <div>
-              <p className="font-display text-2xl font-semibold leading-tight">{style.title}</p>
-              <p className="text-sm text-ink-2">{result.message}</p>
+              <p className="font-display text-xl sm:text-2xl font-semibold leading-tight">{style.title}</p>
+              <p className="text-xs sm:text-sm text-ink-2">{result.message}</p>
             </div>
           </div>
 
           {result.attendee && (
-            <dl className="mt-5 space-y-2 rounded-lg bg-surface/70 p-4 text-sm">
+            <dl className="mt-4 sm:mt-5 space-y-2 rounded-lg bg-surface/70 p-3.5 sm:p-4 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-ink-3">Seat</dt>
-                <dd className="text-right text-lg font-semibold">
+                <dd className="text-right text-base sm:text-lg font-semibold">
                   {result.attendee.seat}
                   {result.attendee.tier && (
                     <span className="ml-2 text-xs font-medium capitalize text-ink-3">{result.attendee.tier.toLowerCase()}</span>
@@ -214,12 +214,12 @@ export default function StaffScannerPage() {
             </dl>
           )}
 
-          <button type="button" onClick={next} className="btn btn-primary mt-5 w-full py-3">
+          <button type="button" onClick={next} className="btn btn-primary mt-4 sm:mt-5 w-full py-3">
             Next attendee
           </button>
         </section>
       ) : (
-        <section className="card space-y-6 p-5 sm:p-6">
+        <section className="card space-y-5 sm:space-y-6 p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <Camera className="h-4 w-4 text-ink-3" />
@@ -245,13 +245,13 @@ export default function StaffScannerPage() {
               e.preventDefault();
               validate(manualToken);
             }}
-            className="space-y-2 border-t border-line pt-5"
+            className="space-y-2.5 border-t border-line pt-4 sm:pt-5"
           >
             <label htmlFor="manual-code" className="flex items-center gap-2 text-sm font-semibold">
               <Keyboard className="h-4 w-4 text-ink-3" />
               Enter a ticket code
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 id="manual-code"
                 type="text"
@@ -263,8 +263,8 @@ export default function StaffScannerPage() {
                 spellCheck={false}
                 className="field flex-1 font-mono text-[13px]"
               />
-              <button type="submit" disabled={busy || !manualToken.trim()} className="btn btn-primary">
-                {busy ? 'Checking…' : 'Check'}
+              <button type="submit" disabled={busy || !manualToken.trim()} className="btn btn-primary shrink-0">
+                {busy ? 'Checking…' : 'Check code'}
               </button>
             </div>
           </form>

@@ -111,11 +111,11 @@ export function ActiveHoldBanner({ hold, onReleased }: ActiveHoldBannerProps) {
         {error && <p className="text-[13px] text-danger">{error}</p>}
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Link href={`/checkout?eventId=${hold.eventId}`} className="btn btn-primary btn-sm">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-line/60 pt-2 sm:border-0 sm:pt-0">
+        <Link href={`/checkout?eventId=${hold.eventId}`} className="btn btn-primary btn-sm flex-1 sm:flex-initial">
           Continue to checkout
         </Link>
-        <Link href={`/events/${hold.eventId}`} className="btn btn-secondary btn-sm">
+        <Link href={`/events/${hold.eventId}`} className="btn btn-secondary btn-sm flex-1 sm:flex-initial">
           View seats
         </Link>
         <button type="button" onClick={handleRelease} disabled={isReleasing} className="btn btn-ghost btn-sm">

@@ -62,11 +62,11 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="group flex items-center gap-2" aria-label="SeatLock home">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-3.5 sm:px-6">
+        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
+          <Link href="/" className="group flex shrink-0 items-center gap-2" aria-label="SeatLock home">
             <SeatMark className="h-[18px] w-[18px] text-accent transition-transform group-hover:-translate-y-px" />
-            <span className="font-display text-[20px] font-extrabold leading-none tracking-tight">
+            <span className="font-display text-[19px] sm:text-[20px] font-extrabold leading-none tracking-tight">
               SeatLock
             </span>
           </Link>
@@ -78,7 +78,7 @@ export function Navbar() {
                 href={link.href}
                 aria-current={isActive(link.href) ? 'page' : undefined}
                 className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive(link.href) ? 'text-ink' : 'text-ink-3 hover:text-ink'
+                  isActive(link.href) ? 'text-ink font-semibold' : 'text-ink-3 hover:text-ink'
                 }`}
               >
                 {link.label}
@@ -90,12 +90,12 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             type="button"
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            className="btn btn-ghost !p-2"
+            className="btn btn-ghost !p-2 min-h-[38px] min-w-[38px]"
           >
             {/* Render a neutral icon until mounted so server and client markup match */}
             {mounted && theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -107,31 +107,46 @@ export function Navbar() {
                 <span className="max-w-[180px] truncate text-ink-2">{user.email}</span>
                 {roleLabel && <span className="tag">{roleLabel}</span>}
               </div>
-              <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" title="Sign out">
+              {/* Mobile indicator for logged-in user */}
+              <div className="flex items-center gap-1 sm:hidden">
+                <span className="max-w-[85px] truncate text-[11px] font-medium text-ink-3">
+                  {user.email.split('@')[0]}
+                </span>
+                {roleLabel && <span className="tag text-[9px] px-1.5 py-0">{roleLabel}</span>}
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn btn-ghost btn-sm min-h-[36px] min-w-[36px] !px-2 sm:!px-3"
+                title="Sign out"
+                aria-label="Sign out"
+              >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Sign out</span>
               </button>
             </>
           ) : (
-            <Link href="/login" className="btn btn-primary btn-sm">
+            <Link href="/login" className="btn btn-primary btn-sm min-h-[36px] px-3.5">
               Sign in
             </Link>
           )}
         </div>
       </div>
 
-      {/* Small screens: same links, scrollable row under the bar */}
+      {/* Small screens: same links, smooth scrollable row under the bar */}
       <nav
-        className="flex gap-1 overflow-x-auto border-t border-line px-3 py-1.5 md:hidden"
-        aria-label="Main"
+        className="no-scrollbar flex gap-1.5 overflow-x-auto border-t border-line px-3.5 py-1.5 md:hidden"
+        aria-label="Main mobile"
       >
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
             aria-current={isActive(link.href) ? 'page' : undefined}
-            className={`shrink-0 rounded-md px-3 py-1 text-[13px] font-medium ${
-              isActive(link.href) ? 'bg-sunken text-ink' : 'text-ink-3'
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              isActive(link.href)
+                ? 'bg-accent-soft text-accent font-semibold'
+                : 'text-ink-3 hover:bg-sunken hover:text-ink'
             }`}
           >
             {link.label}

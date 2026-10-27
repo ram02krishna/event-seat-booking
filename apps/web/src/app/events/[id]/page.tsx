@@ -112,34 +112,40 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
   const started = event?.startsAt ? new Date(event.startsAt).getTime() < Date.now() : false;
 
   return (
-    <main className="page max-w-7xl space-y-6 py-6 pb-32 sm:py-8 lg:pb-8">
-      <header className="space-y-3">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All events
-        </Link>
+    <main className="page max-w-7xl space-y-5 sm:space-y-6 py-5 pb-28 sm:py-8 lg:pb-8">
+      <header className="space-y-2.5 sm:space-y-3">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            All events
+          </Link>
+          <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary btn-sm sm:hidden">
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
 
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+          <div className="space-y-1.5 sm:space-y-2">
             <VenueBadge type={venue?.layout?.type} />
-            <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">
               {event?.title || 'Choose your seats'}
             </h1>
-            <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] sm:text-[13px] text-ink-2">
               <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-ink-3" />
-                {venue.name}
+                <MapPin className="h-3.5 w-3.5 text-ink-3 shrink-0" />
+                <span className="font-medium">{venue.name}</span>
               </span>
               {event?.startsAt && (
                 <span className="inline-flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-ink-3" />
+                  <Calendar className="h-3.5 w-3.5 text-ink-3 shrink-0" />
                   {formatEventDateTime(event.startsAt)}
                 </span>
               )}
               <span className="tabular-nums">
                 {availableCount} of {seats.length} seats open
               </span>
-              <span className="inline-flex items-center gap-1.5 text-ok">
+              <span className="inline-flex items-center gap-1.5 text-ok font-medium">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-50" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-ok" />
@@ -149,7 +155,7 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
             </p>
           </div>
 
-          <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary btn-sm">
+          <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary btn-sm hidden sm:inline-flex shrink-0">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </button>

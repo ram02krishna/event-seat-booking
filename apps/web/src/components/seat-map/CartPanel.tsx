@@ -145,15 +145,24 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
 
   const primaryAction = isHeld ? (
     <button type="button" onClick={() => router.push(`/checkout?eventId=${eventId}`)} className="btn btn-primary w-full">
-      Continue to checkout
+      <span className="hidden sm:inline">Continue to checkout</span>
+      <span className="sm:hidden">Checkout</span>
     </button>
   ) : needsSignIn || !signedIn ? (
     <Link href={loginHref} className="btn btn-primary w-full">
-      Sign in to hold seats
+      <span className="hidden sm:inline">Sign in to hold seats</span>
+      <span className="sm:hidden">Sign in</span>
     </Link>
   ) : (
     <button type="button" onClick={handleHold} disabled={isLoading || selectedSeats.length === 0} className="btn btn-primary w-full">
-      {isLoading ? 'Holding…' : 'Hold seats for 5 minutes'}
+      {isLoading ? (
+        'Holding…'
+      ) : (
+        <>
+          <span className="hidden sm:inline">Hold seats for 5 mins</span>
+          <span className="sm:hidden">Hold seats</span>
+        </>
+      )}
     </button>
   );
 
@@ -216,48 +225,85 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
         {empty && message && <div className="mt-2">{messageBlock}</div>}
       </aside>
 
-      {/* Small screens: a bar pinned to the bottom so it never covers seats */}
+      {/* Small screens: bottom sheet with backdrop */}
       <AnimatePresence>
         {(!empty || message) && (
-          <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-surface shadow-sheet lg:hidden"
-          >
-            <div className="mx-auto max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-              {expanded && !empty && <div className="mb-2 max-h-48 overflow-y-auto">{seatList}</div>}
-              {messageBlock && <div className="mb-2">{messageBlock}</div>}
-              {!empty && (
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpanded((v) => !v)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    aria-expanded={expanded}
-                  >
-                    <ChevronUp className={`h-4 w-4 shrink-0 text-ink-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                    <span className="min-w-0">
-                      <span className="block text-lg font-semibold leading-tight tabular-nums">{formatINR(total)}</span>
-                      <span className="block truncate text-xs text-ink-3">
-                        {selectedSeats.length} seat{selectedSeats.length === 1 ? '' : 's'}
-                        {isHeld && remaining !== null && (
-                          <span className={urgent ? 'font-semibold text-danger' : ''}> · {formatClock(remaining)} left</span>
-                        )}
+          <>
+            {expanded && !empty && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setExpanded(false)}
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+                aria-hidden="true"
+              />
+            )}
+
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-line-strong bg-surface shadow-sheet lg:hidden"
+            >
+              <div className="mx-auto max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5">
+                {/* Pull handle indicator */}
+                <div
+                  className="mx-auto mb-2 h-1 w-10 cursor-pointer rounded-full bg-line-strong hover:bg-ink-3 transition-colors"
+                  onClick={() => setExpanded((v) => !v)}
+                  aria-hidden="true"
+                />
+
+                {expanded && !empty && (
+                  <div className="mb-3 max-h-56 overflow-y-auto pr-1">
+                    <div className="mb-2 flex items-center justify-between border-b border-line pb-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">Your Selection</span>
+                      <button
+                        type="button"
+                        onClick={() => setExpanded(false)}
+                        className="text-xs font-medium text-ink-3 hover:text-ink"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    {seatList}
+                  </div>
+                )}
+
+                {messageBlock && <div className="mb-2">{messageBlock}</div>}
+
+                {!empty && (
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((v) => !v)}
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left"
+                      aria-expanded={expanded}
+                    >
+                      <ChevronUp className={`h-4 w-4 shrink-0 text-ink-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                      <span className="min-w-0">
+                        <span className="block text-base sm:text-lg font-semibold leading-tight tabular-nums">{formatINR(total)}</span>
+                        <span className="block truncate text-xs text-ink-3">
+                          {selectedSeats.length} seat{selectedSeats.length === 1 ? '' : 's'}
+                          {isHeld && remaining !== null && (
+                            <span className={urgent ? 'font-semibold text-danger' : ''}> · {formatClock(remaining)} left</span>
+                          )}
+                        </span>
                       </span>
-                    </span>
+                    </button>
+                    <div className="w-auto min-w-[120px] sm:min-w-[170px] shrink-0">{primaryAction}</div>
+                  </div>
+                )}
+
+                {isHeld && !empty && (
+                  <button type="button" onClick={handleRelease} disabled={isLoading} className="mt-1 w-full py-1 text-xs text-ink-3 hover:text-ink">
+                    Release seats
                   </button>
-                  <div className="w-[190px] shrink-0">{primaryAction}</div>
-                </div>
-              )}
-              {isHeld && !empty && (
-                <button type="button" onClick={handleRelease} disabled={isLoading} className="mt-1 w-full py-1.5 text-xs text-ink-3 hover:text-ink">
-                  Release seats
-                </button>
-              )}
-            </div>
-          </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>

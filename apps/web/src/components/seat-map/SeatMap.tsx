@@ -99,12 +99,16 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   const heldIds = useMemo(() => new Set(heldSeatIds), [heldSeatIds]);
 
   const flashTimer = useRef<number | undefined>(undefined);
+  const mapScrollRef = useRef<HTMLDivElement>(null);
+
   function showFlash(message: string) {
     setFlash(message);
     window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 3500);
   }
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+
 
   function kindOf(seat: SeatData): SeatKind {
     if (seat.status === 'SOLD') return 'sold';
@@ -191,6 +195,15 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
     return { stage, x0, x1, y0, y1, tiers: orderedTiers, rows: Array.from(rows.entries()) };
   }, [seats, venueLayout]);
 
+  // Center the seat map horizontally on mount so mobile and small screen users see the stage right away
+  useEffect(() => {
+    if (mapScrollRef.current) {
+      const el = mapScrollRef.current;
+      const targetScroll = (el.scrollWidth - el.clientWidth) / 2;
+      el.scrollLeft = Math.max(0, targetScroll);
+    }
+  }, [geometry]);
+
   const { stage, x0, x1, y0, y1 } = geometry;
   const cx = stage.x + stage.width / 2;
   const tierName = (tier: string) =>
@@ -203,13 +216,17 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   return (
     <div className="card p-3 sm:p-5">
       {/* Tier filter + zoom */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Highlight a section">
+      <div className="mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div
+          className="no-scrollbar -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0"
+          role="group"
+          aria-label="Highlight a section"
+        >
           <button
             type="button"
             aria-pressed={tierFilter === null}
             onClick={() => setTierFilter(null)}
-            className={`rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] sm:text-[13px] font-medium transition-colors ${
               tierFilter === null
                 ? 'border-ink bg-ink text-bg'
                 : 'border-line-strong text-ink-2 hover:border-ink-3 hover:text-ink'
@@ -225,12 +242,12 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setTierFilter(on ? null : tier)}
-                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] font-medium transition-colors ${
                   on ? 'border-ink bg-sunken text-ink' : 'border-line-strong text-ink-2 hover:border-ink-3 hover:text-ink'
                 }`}
               >
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: rgb(tierVar(tier)) }} />
-                {tierName(tier)}
+                <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-sm" style={{ background: rgb(tierVar(tier)) }} />
+                <span>{tierName(tier)}</span>
                 <span className="tabular-nums text-ink-3">{formatINR(info.minPrice)}</span>
                 <span className="hidden text-ink-3 sm:inline">· {info.available} left</span>
               </button>
@@ -238,41 +255,47 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
           })}
         </div>
 
-        <div className="flex items-center rounded-lg border border-line-strong" role="group" aria-label="Zoom">
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(0.8, +(z - 0.2).toFixed(2)))}
-            disabled={zoom <= 0.8}
-            className="p-2 text-ink-2 hover:bg-sunken disabled:opacity-40"
-            aria-label="Zoom out"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className="w-12 text-center text-xs tabular-nums text-ink-3" aria-live="polite">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(2, +(z + 0.2).toFixed(2)))}
-            disabled={zoom >= 2}
-            className="p-2 text-ink-2 hover:bg-sunken disabled:opacity-40"
-            aria-label="Zoom in"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom(1)}
-            className="border-l border-line-strong p-2 text-ink-2 hover:bg-sunken"
-            aria-label="Reset zoom"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          <span className="text-[11px] text-ink-3 sm:hidden">Swipe map to pan</span>
+          <div className="flex items-center rounded-lg border border-line-strong bg-surface" role="group" aria-label="Zoom">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(0.8, +(z - 0.2).toFixed(2)))}
+              disabled={zoom <= 0.8}
+              className="p-1.5 sm:p-2 text-ink-2 hover:bg-sunken disabled:opacity-40 min-h-[34px] min-w-[34px] flex items-center justify-center"
+              aria-label="Zoom out"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className="w-11 text-center text-xs tabular-nums text-ink-3" aria-live="polite">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(2, +(z + 0.2).toFixed(2)))}
+              disabled={zoom >= 2}
+              className="p-1.5 sm:p-2 text-ink-2 hover:bg-sunken disabled:opacity-40 min-h-[34px] min-w-[34px] flex items-center justify-center"
+              aria-label="Zoom in"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              className="border-l border-line-strong p-1.5 sm:p-2 text-ink-2 hover:bg-sunken min-h-[34px] min-w-[34px] flex items-center justify-center"
+              aria-label="Reset zoom"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Map. Zoom changes the drawn size, so scrolling extents stay correct. */}
-      <div className="max-h-[72vh] overflow-auto rounded-lg border border-line bg-sunken/50">
+      <div
+        ref={mapScrollRef}
+        className="max-h-[68vh] sm:max-h-[72vh] overflow-auto overscroll-contain rounded-lg border border-line bg-sunken/50 touch-pan-x touch-pan-y"
+      >
         <svg
           viewBox={`${x0} ${y0} ${x1 - x0} ${y1 - y0}`}
           role="group"
@@ -471,43 +494,43 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
         </svg>
       </div>
 
-      {/* Fixed-height strip: details never push the page around */}
-      <div className="mt-3 flex min-h-[44px] items-center justify-between gap-4 rounded-lg bg-sunken/70 px-4 py-2.5 text-[13px]" aria-live="polite">
+      {/* Strip: details never push the page around */}
+      <div className="mt-3 flex min-h-[44px] flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 rounded-lg bg-sunken/70 px-3.5 sm:px-4 py-2.5 text-[12px] sm:text-[13px]" aria-live="polite">
         {flash ? (
           <p className="font-medium text-danger">{flash}</p>
         ) : activeSeat && activeKind ? (
           <>
             <p className="flex min-w-0 flex-wrap items-center gap-x-2">
-              <span className="font-semibold">
+              <span className="font-semibold text-ink">
                 Row {activeSeat.row}, seat {activeSeat.number}
               </span>
               <span className="text-ink-3">{tierName(activeSeat.tier)}</span>
               <span className="text-ink-3">· {SEAT_STATUS_LABEL[activeKind]}</span>
             </p>
-            <p className="shrink-0 font-semibold tabular-nums">{formatINR(activeSeat.price)}</p>
+            <p className="shrink-0 font-semibold tabular-nums text-ink">{formatINR(activeSeat.price)}</p>
           </>
         ) : (
-          <p className="text-ink-3">Tap or hover a seat to see its details. You can pick up to 6.</p>
+          <p className="text-ink-3">Tap a seat to select it. You can pick up to 6.</p>
         )}
       </div>
 
       {/* Legend */}
-      <ul className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-3">
+      <ul className="mt-3 grid grid-cols-2 gap-2 text-xs text-ink-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
         <li className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-[4px] border" style={{ borderColor: rgb('--tier-premium'), background: rgb('--tier-premium', 0.16) }} />
-          Available
+          <span className="h-3.5 w-3.5 rounded-[4px] border shrink-0" style={{ borderColor: rgb('--tier-premium'), background: rgb('--tier-premium', 0.16) }} />
+          <span>Available</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-[4px] bg-accent" />
-          Yours
+          <span className="h-3.5 w-3.5 rounded-[4px] bg-accent shrink-0" />
+          <span>Yours</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-[4px] border border-dashed" style={{ borderColor: rgb('--warn'), background: rgb('--warn', 0.14) }} />
-          Held by someone else
+          <span className="h-3.5 w-3.5 rounded-[4px] border border-dashed shrink-0" style={{ borderColor: rgb('--warn'), background: rgb('--warn', 0.14) }} />
+          <span>Held by someone</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-[4px] bg-line" />
-          Taken
+          <span className="h-3.5 w-3.5 rounded-[4px] bg-line shrink-0" />
+          <span>Taken</span>
         </li>
       </ul>
     </div>

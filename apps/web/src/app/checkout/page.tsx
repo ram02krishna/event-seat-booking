@@ -148,8 +148,8 @@ function CheckoutContent() {
   const eventInfo = seatData?.event;
 
   return (
-    <main className="page max-w-3xl space-y-6 py-8 sm:py-12">
-      <div className="space-y-3">
+    <main className="page max-w-3xl space-y-5 sm:space-y-6 py-6 sm:py-12">
+      <div className="space-y-2 sm:space-y-3">
         <Link
           href={`/events/${eventId}`}
           className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
@@ -157,11 +157,11 @@ function CheckoutContent() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to seat map
         </Link>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Review your booking</h1>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+          <h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">Review your booking</h1>
           {remaining !== null && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums ${
+              className={`inline-flex self-start sm:self-auto items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-semibold tabular-nums ${
                 urgent ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'
               }`}
               role="timer"
@@ -175,38 +175,38 @@ function CheckoutContent() {
 
       <section className="card divide-y divide-line">
         {eventInfo && (
-          <div className="p-5">
+          <div className="p-4 sm:p-5">
             <p className="eyebrow">Event</p>
-            <p className="mt-1 font-display text-xl font-semibold">{eventInfo.title}</p>
-            {eventInfo.startsAt && <p className="text-sm text-ink-2">{formatEventDateTime(eventInfo.startsAt)}</p>}
+            <p className="mt-1 font-display text-lg sm:text-xl font-semibold">{eventInfo.title}</p>
+            {eventInfo.startsAt && <p className="text-xs sm:text-sm text-ink-2">{formatEventDateTime(eventInfo.startsAt)}</p>}
           </div>
         )}
 
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           <p className="eyebrow mb-1">
             {seats.length} seat{seats.length === 1 ? '' : 's'}
           </p>
           <ul className="divide-y divide-line">
             {seats.map((seat) => (
-              <li key={seat.id} className="flex items-center justify-between py-3 text-sm">
+              <li key={seat.id} className="flex items-center justify-between py-2.5 sm:py-3 text-sm">
                 <div>
                   <p className="font-medium">
                     Row {seat.row}, seat {seat.number}
                   </p>
                   <p className="text-xs capitalize text-ink-3">{seat.tier.toLowerCase()}</p>
                 </div>
-                <span className="tabular-nums">{formatINR(seat.price)}</span>
+                <span className="tabular-nums font-medium">{formatINR(seat.price)}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="flex items-baseline justify-between p-5">
+        <div className="flex items-baseline justify-between p-4 sm:p-5">
           <span className="text-sm text-ink-2">Total</span>
-          <span className="text-3xl font-semibold tabular-nums">{formatINR(total)}</span>
+          <span className="text-2xl sm:text-3xl font-semibold tabular-nums">{formatINR(total)}</span>
         </div>
 
-        <div className="space-y-4 p-5">
+        <div className="space-y-4 p-4 sm:p-5">
           {user ? (
             <p className="text-sm text-ink-2">
               Tickets will be emailed to <span className="font-medium text-ink">{user.email}</span> and saved under My

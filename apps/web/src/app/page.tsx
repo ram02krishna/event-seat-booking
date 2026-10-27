@@ -43,53 +43,57 @@ function EventRow({ event, onPrefetch }: { event: EventItem; onPrefetch: (id: st
         className="group card flex overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift"
       >
         {/* Date stub */}
-        <div className="flex w-[84px] shrink-0 flex-col items-center justify-center border-r border-dashed border-line-strong bg-sunken/60 px-2 py-5 text-center sm:w-[104px]">
-          <span className="eyebrow">{weekdayFmt.format(date)}</span>
-          <span className="font-display text-[36px] font-bold leading-none tracking-tight sm:text-[42px]">
+        <div className="flex w-[72px] shrink-0 flex-col items-center justify-center border-r border-dashed border-line-strong bg-sunken/60 px-1 py-4 text-center sm:w-[104px] sm:px-2 sm:py-5">
+          <span className="eyebrow text-[10px] sm:text-[11px]">{weekdayFmt.format(date)}</span>
+          <span className="font-display text-[28px] font-bold leading-none tracking-tight sm:text-[42px]">
             {dayFmt.format(date)}
           </span>
-          <span className="eyebrow mt-1">{monthFmt.format(date)}</span>
+          <span className="eyebrow mt-1 text-[10px] sm:text-[11px]">{monthFmt.format(date)}</span>
         </div>
 
         {/* Details */}
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
-          <div className="min-w-0 space-y-2">
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+          <div className="min-w-0 space-y-1.5 sm:space-y-2">
             <VenueBadge type={event.venue?.layout?.type} />
-            <h2 className="font-display text-[21px] font-bold leading-snug tracking-tight sm:text-2xl">
+            <h2 className="font-display text-[18px] sm:text-2xl font-bold leading-snug tracking-tight">
               {event.title}
             </h2>
             {event.description && (
-              <p className="line-clamp-2 max-w-xl text-sm text-ink-2">{event.description}</p>
+              <p className="line-clamp-2 max-w-xl text-xs sm:text-sm text-ink-2">{event.description}</p>
             )}
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] sm:text-[13px] text-ink-3">
               <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {event.venue.name}
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate max-w-[160px] sm:max-w-none">{event.venue.name}</span>
               </span>
               <span>{timeFmt.format(date).toUpperCase()}</span>
             </p>
           </div>
 
-          <div className="flex shrink-0 items-end justify-between gap-6 sm:w-48 sm:flex-col sm:items-end sm:justify-center sm:gap-3">
-            <div className="sm:text-right">
+          <div className="flex flex-col gap-2.5 border-t border-line/60 pt-3 sm:w-48 sm:shrink-0 sm:border-0 sm:pt-0 sm:items-end sm:justify-center sm:gap-3">
+            <div className="flex items-baseline justify-between sm:block sm:text-right">
               {event.minPrice && event.minPrice > 0 ? (
-                <>
-                  <p className="eyebrow">From</p>
-                  <p className="text-xl font-semibold tabular-nums">{formatINR(event.minPrice)}</p>
-                </>
+                <div>
+                  <p className="eyebrow sm:block">From</p>
+                  <p className="text-lg sm:text-xl font-semibold tabular-nums">{formatINR(event.minPrice)}</p>
+                </div>
               ) : (
                 <p className="eyebrow">Pricing on selection</p>
               )}
+
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent md:hidden">
+                Pick seats <ArrowRight className="h-3.5 w-3.5" />
+              </span>
             </div>
 
-            <div className="w-full max-w-[11rem] space-y-1.5 sm:max-w-none">
-              <div className="h-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+            <div className="w-full space-y-1 sm:max-w-none">
+              <div className="h-1.5 overflow-hidden rounded-full bg-line" aria-hidden="true">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${fillingFast || soldOut ? 'bg-warn' : 'bg-accent'}`}
                   style={{ width: `${Math.round(taken * 100)}%` }}
                 />
               </div>
-              <p className={`text-xs sm:text-right ${fillingFast ? 'font-medium text-warn' : 'text-ink-3'}`}>
+              <p className={`text-[11px] sm:text-xs sm:text-right ${fillingFast ? 'font-medium text-warn' : 'text-ink-3'}`}>
                 {soldOut
                   ? 'Sold out'
                   : fillingFast
@@ -149,21 +153,25 @@ export default function HomePage() {
   }
 
   return (
-    <main className="page max-w-5xl space-y-8 py-10 sm:py-14">
+    <main className="page max-w-5xl space-y-6 sm:space-y-8 py-6 sm:py-14">
       {holdData?.hold && <ActiveHoldBanner hold={holdData.hold} onReleased={() => refetchHold()} />}
 
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-5xl">
             Upcoming events
           </h1>
-          <p className="max-w-md text-[15px] text-ink-2">
+          <p className="max-w-md text-sm sm:text-[15px] text-ink-2">
             Choose your own seats from the live map. Seats you pick are held for five minutes while you check out.
           </p>
         </div>
 
         {filters.length > 1 && (
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by venue type">
+          <div
+            className="no-scrollbar -mx-3.5 flex gap-1.5 overflow-x-auto px-3.5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0"
+            role="group"
+            aria-label="Filter by venue type"
+          >
             {[['ALL', 'All'] as const, ...filters.map(([k]) => [k, VENUE_LABELS[k]] as const)].map(
               ([value, label]) => (
                 <button
@@ -171,7 +179,7 @@ export default function HomePage() {
                   type="button"
                   aria-pressed={venueFilter === value}
                   onClick={() => setVenueFilter(value as 'ALL' | VenueTypeKey)}
-                  className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                  className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                     venueFilter === value
                       ? 'border-ink bg-ink text-bg'
                       : 'border-line-strong text-ink-2 hover:border-ink-3 hover:text-ink'
