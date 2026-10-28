@@ -36,6 +36,9 @@ function generateOtp(): string {
 
 const MAX_OTP_ATTEMPTS = 5;
 
+// Valid bcrypt hash of a random string, only used to equalise login timing for unknown emails
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+
 function codesMatch(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -313,6 +316,8 @@ authRouter.post(
 
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
+        // Spend the same time as a real check so response timing doesn't reveal which emails exist
+        await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
         return next(new AppError(401, 'Invalid email or password'));
       }
 

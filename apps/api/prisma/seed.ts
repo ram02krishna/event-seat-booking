@@ -13,6 +13,10 @@ import { getVenueTemplate } from '../src/services/venueTemplates.service';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the destructive demo seed in production.');
+  }
+
   console.log('Seeding database with multi-architecture seatmaps...');
 
   // 1. Clean existing records

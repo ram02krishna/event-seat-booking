@@ -101,24 +101,14 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   const flashTimer = useRef<number | undefined>(undefined);
   const mapScrollRef = useRef<HTMLDivElement>(null);
 
-  // Scrolling & dragging state:
+  // Panning & dragging state:
   // - Touch devices (smartphones/tablets): utilize native, hardware-accelerated touch scrolling via `touch-action: pan-x pan-y`
   // - Desktop mouse: support click-and-drag panning
   const isMouseDownRef = useRef(false);
   const isDraggingRef = useRef(false);
   const justDraggedRef = useRef(false);
   const startPosRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
-  const isScrollingRef = useRef(false);
-  const scrollTimerRef = useRef<number | undefined>(undefined);
   const [isDraggingState, setIsDraggingState] = useState(false);
-
-  const handleScroll = () => {
-    isScrollingRef.current = true;
-    window.clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = window.setTimeout(() => {
-      isScrollingRef.current = false;
-    }, 150);
-  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Only capture primary mouse button for desktop drag-to-pan
@@ -133,11 +123,9 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
         scrollLeft: mapScrollRef.current.scrollLeft,
         scrollTop: mapScrollRef.current.scrollTop,
       };
-      try {
-        mapScrollRef.current.setPointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
+      // NOTE: do not setPointerCapture here. Capturing on pointerdown retargets the subsequent
+      // `click` to the scroll container, so seat onClick handlers never fire. We only capture
+      // once the pointer has actually started dragging (see handlePointerMove).
     }
   };
 
@@ -149,6 +137,11 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
       if (!isDraggingRef.current && Math.hypot(dx, dy) > 4) {
         isDraggingRef.current = true;
         setIsDraggingState(true);
+        try {
+          mapScrollRef.current.setPointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
       }
 
       if (isDraggingRef.current) {
@@ -190,7 +183,6 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   }
   useEffect(() => () => {
     window.clearTimeout(flashTimer.current);
-    window.clearTimeout(scrollTimerRef.current);
   }, []);
 
   function kindOf(seat: SeatData): SeatKind {
@@ -219,7 +211,9 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
   }, [seatById]);
 
   function handleSeatActivate(seat: SeatData) {
-    if (isDraggingRef.current || justDraggedRef.current || isScrollingRef.current) return;
+    // A genuine tap never produces a scroll, and browsers don't fire click after a touch pan,
+    // so only ignore clicks that end a mouse drag.
+    if (isDraggingRef.current || justDraggedRef.current) return;
     setActiveSeat(seat);
     const kind = kindOf(seat);
     if (kind === 'sold' || kind === 'held') return;
@@ -252,13 +246,12 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
     const y1 = maxY + 46;
 
     // Tier blocks, top to bottom, for the section captions
-    const tiers = new Map<string, { minX: number; maxX: number; minY: number; available: number; total: number; minPrice: number }>();
+    const tiers = new Map<string, { minX: number; maxX: number; minY: number; available: number; minPrice: number }>();
     for (const s of seats) {
-      const t = tiers.get(s.tier) ?? { minX: s.x, maxX: s.x, minY: s.y, available: 0, total: 0, minPrice: s.price };
+      const t = tiers.get(s.tier) ?? { minX: s.x, maxX: s.x, minY: s.y, available: 0, minPrice: s.price };
       t.minX = Math.min(t.minX, s.x);
       t.maxX = Math.max(t.maxX, s.x);
       t.minY = Math.min(t.minY, s.y);
-      t.total += 1;
       if (s.status === 'AVAILABLE') t.available += 1;
       t.minPrice = Math.min(t.minPrice, s.price);
       tiers.set(s.tier, t);
@@ -279,6 +272,8 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
     return { stage, x0, x1, y0, y1, tiers: orderedTiers, rows: Array.from(rows.entries()) };
   }, [seats, venueLayout]);
 
+  const hasSeats = seats.length > 0;
+
   // Center the seat map horizontally on mount and zoom so mobile and small screen users see the stage right away
   useEffect(() => {
     const center = () => {
@@ -297,7 +292,7 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
       cancelAnimationFrame(raf);
       clearTimeout(timer);
     };
-  }, [geometry, zoom]);
+  }, [hasSeats, zoom]);
 
   const { stage, x0, x1, y0, y1 } = geometry;
   const cx = stage.x + stage.width / 2;
@@ -392,7 +387,6 @@ export function SeatMap({ seats, venueLayout }: SeatMapProps) {
       {/* Map. Zoom changes the drawn size, so scrolling extents stay correct. */}
       <div
         ref={mapScrollRef}
-        onScroll={handleScroll}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

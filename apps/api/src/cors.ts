@@ -9,7 +9,9 @@ export function isOriginAllowed(origin: string | undefined): boolean {
     .map((o) => o.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
-  if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+  // This API uses credentialed cookies, so never reflect arbitrary origins from a wildcard.
+  // Even in development, exact localhost/LAN origins are handled explicitly below.
+  if (allowedOrigins.includes(origin)) {
     return true;
   }
 
@@ -23,11 +25,8 @@ export function isOriginAllowed(origin: string | undefined): boolean {
     return true;
   }
 
-  // Allow Vercel preview deployments if vercel.app is configured in CLIENT_URL
-  const hasVercelAllowed = allowedOrigins.some((o) => o.includes('.vercel.app'));
-  if (hasVercelAllowed && /^https:\/\/[a-zA-Z0-9_\-.]+\.vercel\.app$/.test(origin)) {
-    return true;
-  }
+  // Preview deployments must be added as exact trusted origins in CLIENT_URL.
+  // Allowing every *.vercel.app site would reflect arbitrary origins with session cookies.
 
   return false;
 }

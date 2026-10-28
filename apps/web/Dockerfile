@@ -14,6 +14,13 @@ RUN pnpm install --frozen-lockfile=false
 
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
+
+# NEXT_PUBLIC_* values are baked into the client bundle at build time
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
+
 RUN pnpm --filter @repo/shared build
 RUN pnpm --filter web build
 

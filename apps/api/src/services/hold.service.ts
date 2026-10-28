@@ -9,7 +9,6 @@ export async function holdSeats(params: {
   eventId: string;
   seatIds: string[];
   userId: string;
-  idempotencyKey?: string;
 }) {
   const { eventId, seatIds, userId } = params;
 
@@ -23,7 +22,6 @@ export async function holdSeats(params: {
 
   // Sort seatIds to prevent deadlocks when concurrent users request overlapping seats
   const sortedIds = [...new Set(seatIds)].sort();
-  const holdExpiresAt = new Date(Date.now() + HOLD_DURATION_MS);
 
   // Check event exists
   const event = await prisma.event.findUnique({
@@ -46,7 +44,19 @@ export async function holdSeats(params: {
   }
 
   // Run hold query inside transaction for all-or-nothing atomicity
-  const { heldSeats, releasedSeatIds, releasedElsewhere } = await prisma.$transaction(async (tx) => {
+  const { heldSeats, releasedSeatIds, releasedElsewhere, holdExpiresAt } = await prisma.$transaction(async (tx) => {
+    // Serialize hold creation for a user. Without a row lock, two simultaneous requests for
+    // different events can both observe no existing hold and leave the user holding both.
+    const lockedUser = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE;
+    `;
+    if (lockedUser.length === 0) {
+      throw new AppError(401, 'User account not found. Please sign in again.');
+    }
+
+    // Start the hold timer after acquiring the lock, not before waiting for another request.
+    const holdExpiresAt = new Date(Date.now() + HOLD_DURATION_MS);
+
     // One active hold per user. Anything they currently hold that isn't part of this request is
     // let go, including seats at other events, so the UI only ever has one hold to describe.
     const existingUserHolds = await tx.eventSeat.findMany({
@@ -116,17 +126,19 @@ export async function holdSeats(params: {
       throw new AppError(409, 'One or more selected seats are no longer available');
     }
 
-    return { heldSeats: updatedRows, releasedSeatIds, releasedElsewhere };
+    return { heldSeats: updatedRows, releasedSeatIds, releasedElsewhere, holdExpiresAt };
   });
 
-  // Schedule delayed BullMQ job to automatically release seats if not confirmed
-  await scheduleHoldExpiry(
+  // Schedule a delayed BullMQ job to release the seats if they are never confirmed. The database
+  // is the source of truth (expired holds are ignored by every query and swept by the periodic
+  // cleanup job), so don't make the customer wait on Redis, which could hang if it is unreachable.
+  void scheduleHoldExpiry(
     {
       eventId,
       seatIds: heldSeats.map((s) => s.seatId),
       userId,
     },
-    HOLD_DURATION_MS
+    Math.max(1000, holdExpiresAt.getTime() - Date.now())
   );
 
   return {

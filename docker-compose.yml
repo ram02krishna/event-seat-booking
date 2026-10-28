@@ -45,7 +45,9 @@ services:
         condition: service_healthy
     environment:
       PORT: 4000
-      NODE_ENV: production
+      # Local stack over plain http://localhost. NODE_ENV=production would make the API refuse to
+      # start (it requires a unique JWT secret, https origins and Resend credentials).
+      NODE_ENV: development
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/seat_lock?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: supersecretdevkey1234567890_min32chars
@@ -58,6 +60,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${DOCKER_API_PORT:-4000}
+        NEXT_PUBLIC_SOCKET_URL: http://localhost:${DOCKER_API_PORT:-4000}
     container_name: seat_lock_web
     restart: unless-stopped
     depends_on:

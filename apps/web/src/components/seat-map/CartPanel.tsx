@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -114,6 +114,10 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
   }
 
   const empty = selectedSeats.length === 0 && !isHeld;
+
+  useEffect(() => {
+    if (empty) setExpanded(false);
+  }, [empty]);
 
   const seatList = (
     <ul className="divide-y divide-line">
@@ -249,10 +253,12 @@ export function CartPanel({ eventId, onHoldSuccess, onReleaseSuccess }: CartPane
             >
               <div className="mx-auto max-w-lg px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                 {/* Pull handle indicator */}
-                <div
-                  className="mx-auto mb-2 h-1 w-10 cursor-pointer rounded-full bg-line-strong hover:bg-ink-3 transition-colors"
+                <button
+                  type="button"
+                  className="mx-auto mb-2 block h-1 w-10 cursor-pointer rounded-full border-0 bg-line-strong p-0 transition-colors hover:bg-ink-3"
                   onClick={() => setExpanded((v) => !v)}
-                  aria-hidden="true"
+                  aria-label={expanded ? 'Collapse seat cart' : 'Expand seat cart'}
+                  aria-expanded={expanded}
                 />
 
                 {expanded && !empty && (

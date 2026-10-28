@@ -4,38 +4,29 @@ import { broadcastSeatsReleased } from '../socket';
 import { redisConnection } from '../redis';
 
 export async function cleanupExpiredHolds(): Promise<number> {
-  const now = new Date();
+  // This single conditional UPDATE is intentionally atomic. A select-then-update can race
+  // with a customer re-holding the same seat and incorrectly clear the newer hold.
+  const expiredSeats = await prisma.$queryRaw<Array<{ eventId: string; seatId: string }>>`
+    UPDATE "EventSeat"
+    SET
+      status = 'AVAILABLE'::"SeatStatus",
+      "heldByUserId" = NULL,
+      "holdExpiresAt" = NULL,
+      version = version + 1,
+      "updatedAt" = NOW()
+    WHERE status = 'HELD'::"SeatStatus"
+      AND "holdExpiresAt" <= NOW()
+    RETURNING "eventId", "seatId";
+  `;
 
-  // Find all stray expired holds across the database
-  const expiredSeats = await prisma.eventSeat.findMany({
-    where: {
-      status: 'HELD',
-      holdExpiresAt: { lt: now },
-    },
-    select: { id: true, eventId: true, seatId: true },
-  });
+  if (expiredSeats.length === 0) return 0;
 
-  if (expiredSeats.length === 0) {
-    return 0;
-  }
-
-  // Reset all expired seats to AVAILABLE
-  await prisma.eventSeat.updateMany({
-    where: { id: { in: expiredSeats.map((s) => s.id) } },
-    data: {
-      status: 'AVAILABLE',
-      heldByUserId: null,
-      holdExpiresAt: null,
-      version: { increment: 1 },
-    },
-  });
-
-  // Group by eventId and broadcast release to relevant rooms
+  // Broadcast only the rows the atomic update actually released.
   const eventMap = new Map<string, string[]>();
-  for (const s of expiredSeats) {
-    const list = eventMap.get(s.eventId) || [];
-    list.push(s.seatId);
-    eventMap.set(s.eventId, list);
+  for (const seat of expiredSeats) {
+    const list = eventMap.get(seat.eventId) || [];
+    list.push(seat.seatId);
+    eventMap.set(seat.eventId, list);
   }
 
   for (const [eventId, seatIds] of eventMap.entries()) {
@@ -44,7 +35,7 @@ export async function cleanupExpiredHolds(): Promise<number> {
 
   redisConnection.del('cache:events:published').catch(() => null);
 
-  logger.info(`Cleanup job tidy-up: released ${expiredSeats.length} stray expired holds`);
+  logger.info(`Cleanup job tidy-up: released ${expiredSeats.length} expired holds`);
   return expiredSeats.length;
 }
 

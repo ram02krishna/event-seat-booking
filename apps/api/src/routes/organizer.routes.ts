@@ -7,6 +7,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../errors';
 import { Role, SeatStatus } from '@prisma/client';
 import { getVenueTemplate, VENUE_TEMPLATES } from '../services/venueTemplates.service';
+import type { VenueType } from '@repo/shared';
 import { redisConnection } from '../redis';
 
 export const organizerRouter = Router();
@@ -135,6 +136,11 @@ organizerRouter.post(
     try {
       const { venueId, venueName, venueType, title, description, startsAt, pricing } = req.body;
 
+      const eventStart = new Date(startsAt);
+      if (eventStart.getTime() <= Date.now()) {
+        return next(new AppError(400, 'The event start time must be in the future'));
+      }
+
       let venue = null;
       if (venueId) {
         venue = await prisma.venue.findUnique({
@@ -193,40 +199,54 @@ organizerRouter.post(
         );
       }
 
-      const event = await prisma.event.create({
-        data: {
-          venueId: venue.id,
-          title,
-          description,
-          startsAt: new Date(startsAt),
-        },
-      });
+      // Default prices should follow the venue that was actually chosen, not the form's layout
+      // preset (which is only meaningful when a brand-new venue is being created).
+      const venueTemplateType = (venue.layout as { type?: VenueType } | null)?.type;
+      const pricingTemplate =
+        venueTemplateType && venueTemplateType in VENUE_TEMPLATES ? getVenueTemplate(venueTemplateType) : template;
 
       // Populate EventSeat records for all venue seats
       const defaultTierPricing: Record<string, number> = {
-        VIP: template.recommendedPricing.VIP,
-        PREMIUM: template.recommendedPricing.PREMIUM,
-        STANDARD: template.recommendedPricing.STANDARD,
+        VIP: pricingTemplate.recommendedPricing.VIP,
+        PREMIUM: pricingTemplate.recommendedPricing.PREMIUM,
+        STANDARD: pricingTemplate.recommendedPricing.STANDARD,
         ...pricing,
       };
+      const venueSeats = venue.seats;
+      const resolvedVenueId = venue.id;
 
-      const eventSeatsData = venue.seats.map((seat) => ({
-        eventId: event.id,
-        seatId: seat.id,
-        price: defaultTierPricing[seat.tier] || template.recommendedPricing.STANDARD,
-        status: SeatStatus.AVAILABLE,
-      }));
+      // Create the event and all of its seats together, so a failure can't leave behind a
+      // published event with no (or only some) seats.
+      const { event, eventSeatsCount } = await prisma.$transaction(
+        async (tx) => {
+          const created = await tx.event.create({
+            data: {
+              venueId: resolvedVenueId,
+              title,
+              description,
+              startsAt: eventStart,
+            },
+          });
 
-      await prisma.eventSeat.createMany({
-        data: eventSeatsData,
-      });
+          const eventSeatsData = venueSeats.map((seat) => ({
+            eventId: created.id,
+            seatId: seat.id,
+            price: defaultTierPricing[seat.tier] || pricingTemplate.recommendedPricing.STANDARD,
+            status: SeatStatus.AVAILABLE,
+          }));
+
+          await tx.eventSeat.createMany({ data: eventSeatsData });
+          return { event: created, eventSeatsCount: eventSeatsData.length };
+        },
+        { timeout: 30000 },
+      );
 
       // Invalidate public events cache in Redis so new event appears instantly
-      await redisConnection.del('cache:events:published').catch(() => null);
+      redisConnection.del('cache:events:published').catch(() => null);
 
       res.status(201).json({
         event,
-        seatsCount: eventSeatsData.length,
+        seatsCount: eventSeatsCount,
       });
     } catch (err) {
       next(err);

@@ -51,10 +51,13 @@ export const useCartStore = create<CartState>()(
 
       toggleSeat: (seat) => {
         const { selectedSeats, heldSeatIds, holdExpiresAt } = get();
+        const holdExpired =
+          heldSeatIds.length > 0 && !!holdExpiresAt && new Date(holdExpiresAt) <= new Date();
+        const currentSelection = holdExpired ? [] : selectedSeats;
 
-        // If hold is expired, clear hold
-        if (heldSeatIds.length > 0 && holdExpiresAt && new Date(holdExpiresAt) <= new Date()) {
-          set({ heldSeatIds: [], holdExpiresAt: null });
+        if (holdExpired) {
+          // Expired seats may already have been taken by someone else; don't keep them in the cart.
+          set({ selectedSeats: [], heldSeatIds: [], holdExpiresAt: null });
         } else if (heldSeatIds.length > 0) {
           return {
             success: false,
@@ -62,21 +65,21 @@ export const useCartStore = create<CartState>()(
           };
         }
 
-        const exists = selectedSeats.some((s) => s.id === seat.id || s.seatId === seat.seatId);
+        const exists = currentSelection.some((s) => s.id === seat.id || s.seatId === seat.seatId);
         if (exists) {
           set({
-            selectedSeats: selectedSeats.filter(
+            selectedSeats: currentSelection.filter(
               (s) => s.id !== seat.id && s.seatId !== seat.seatId
             ),
           });
           return { success: true };
         }
 
-        if (selectedSeats.length >= 6) {
+        if (currentSelection.length >= 6) {
           return { success: false, error: 'Maximum 6 seats per booking' };
         }
 
-        set({ selectedSeats: [...selectedSeats, seat] });
+        set({ selectedSeats: [...currentSelection, seat] });
         return { success: true };
       },
 

@@ -21,6 +21,17 @@ export interface SendTicketsEmailParams {
 const resendApiKey = config.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+function escapeHtml(value: unknown): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character]!);
+}
+
 export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams) {
   const { toEmail, orderId, eventTitle, startsAt, venueName, tickets } = params;
 
@@ -44,10 +55,9 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
   };
 
   const ticketsHtml = tickets
-    .map((t) => {
+    .map((t, index) => {
       const token = t.qrToken || t.ticketId;
-      // High-resolution HTTPS QR generator URL for 100% email client compatibility without file attachments
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=${encodeURIComponent(token)}`;
+      const qrContentId = `ticket-qr-${index}`;
       const tierStyle = tierColors[t.tier] || tierColors.STANDARD;
 
       return `
@@ -57,24 +67,24 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
               <td valign="top" style="padding-right: 14px;">
                 <div style="margin-bottom: 6px;">
                   <span style="background-color: ${tierStyle.bg}; color: ${tierStyle.text}; border: 1px solid ${tierStyle.border}; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px; display: inline-block;">
-                    ${t.tier}
+                    ${escapeHtml(t.tier)}
                   </span>
                 </div>
                 <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
-                  ${t.seatLabel}
+                  ${escapeHtml(t.seatLabel)}
                 </div>
                 <div style="font-size: 15px; font-weight: 700; color: #059669; margin-bottom: 10px;">
                   ₹${(t.priceCents / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 11px; color: #334155; word-break: break-all;">
                   <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px;">Ticket Token:</span>
-                  <span style="color: #4f46e5; font-weight: 600;">${token}</span>
+                  <span style="color: #4f46e5; font-weight: 600;">${escapeHtml(token)}</span>
                 </div>
               </td>
               <td width="116" valign="top" align="center" style="width: 116px; min-width: 116px;">
                 <div style="background-color: #ffffff; padding: 6px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); display: inline-block;">
                   <img
-                    src="${qrUrl}"
+                    src="cid:${qrContentId}"
                     width="104"
                     height="104"
                     alt="Ticket QR Code"
@@ -119,13 +129,13 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
             <!-- Event Summary Box -->
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 22px;">
               <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #0f172a; font-weight: 700;">
-                ${eventTitle}
+                ${escapeHtml(eventTitle)}
               </h2>
               <div style="font-size: 13px; color: #475569; margin-bottom: 6px; line-height: 1.4;">
-                📍 <strong>Venue:</strong> ${venueName}
+                📍 <strong>Venue:</strong> ${escapeHtml(venueName)}
               </div>
               <div style="font-size: 13px; color: #475569; line-height: 1.4;">
-                📅 <strong>Date:</strong> ${formattedDate}
+                📅 <strong>Date:</strong> ${escapeHtml(formattedDate)}
               </div>
             </div>
 
@@ -140,7 +150,7 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
             <!-- CTA Button -->
             <div style="text-align: center; margin: 26px 0 10px 0;">
               <a
-                href="${viewTicketsUrl}"
+                href="${escapeHtml(viewTicketsUrl)}"
                 style="display: inline-block; background-color: #4f46e5; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);"
               >
                 View Tickets in Web App &rarr;
@@ -170,12 +180,21 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       config.RESEND_FROM_EMAIL ||
       'SeatLock <security@ram02krishna.me>';
 
-    // Send email with inline QR code URL only (no separate PNG attachments so Gmail won't show attachment cards)
+    // Embed locally generated QR images as inline email attachments. Sending tokens to an
+    // external QR image URL would leak reusable admission credentials to a third party.
+    const attachments = tickets.map((ticket, index) => ({
+      filename: `ticket-${index + 1}.png`,
+      content: ticket.qrDataUrl.replace(/^data:image\/png;base64,/, ''),
+      contentType: 'image/png',
+      contentId: `ticket-qr-${index}`,
+    }));
+
     const result = await resend.emails.send({
       from: fromEmail,
       to: recipient,
       subject: `Your Tickets for ${eventTitle} (Order #${orderId.slice(0, 8)})`,
       html,
+      attachments,
     });
 
     if (result.error) {
@@ -258,12 +277,15 @@ export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmai
     </html>
   `;
 
-  // Always log to server logs for easy development & debugging
-  logger.info(`[Auth OTP] Verification code for ${toEmail} (${purpose}): ${otp}`);
+  // OTPs are credentials; never write them to production logs. Local development can log them
+  // because the API also deliberately exposes devOtp to the developer-only frontend flow.
+  if (config.NODE_ENV !== 'production') {
+    logger.info(`[Auth OTP] Verification code for ${toEmail} (${purpose}): ${otp}`);
+  }
 
   if (!resend) {
-    logger.info(`[Resend Mock] Resend API key not configured. OTP logged for ${toEmail}`);
-    return { success: true };
+    logger.info(`[Resend Mock] Resend API key not configured. Email delivery is disabled for ${toEmail}`);
+    return { success: config.NODE_ENV !== 'production', error: 'Email delivery is not configured' };
   }
 
   try {

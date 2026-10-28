@@ -83,6 +83,9 @@ export async function finalizeOrder(orderId: string, seatIds?: string[]) {
         id: { in: heldSeats.map((s) => s.id) },
         status: 'HELD',
         heldByUserId: order.userId,
+        // Re-check the deadline in the atomic update too; a hold can expire between the
+        // initial read and the state transition to SOLD.
+        holdExpiresAt: { gt: new Date() },
       },
       data: {
         status: 'SOLD',

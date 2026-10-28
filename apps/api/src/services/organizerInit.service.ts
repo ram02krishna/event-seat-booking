@@ -16,7 +16,7 @@ export async function ensureDefaultOrganizer() {
     }
 
     // Check if the default email exists
-    const email = config.ORGANIZER_EMAIL;
+    const email = config.ORGANIZER_EMAIL.trim().toLowerCase();
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });

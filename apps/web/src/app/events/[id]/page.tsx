@@ -128,7 +128,7 @@ export default function EventSeatMapPage({ params }: EventPageProps) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="space-y-1.5 sm:space-y-2">
             <VenueBadge type={venue?.layout?.type} />
-            <h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="break-words font-display text-2xl font-bold tracking-tight sm:text-4xl">
               {event?.title || 'Choose your seats'}
             </h1>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] sm:text-[13px] text-ink-2">

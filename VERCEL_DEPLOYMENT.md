@@ -55,7 +55,7 @@ To connect your deployed Vercel frontend with the backend API:
    ```
    > **Tip**: You can provide a comma-separated list to support multiple domains and preview builds, e.g.:
    > `CLIENT_URL=http://localhost:3000,https://your-app.vercel.app`
-   > The API automatically permits Vercel preview branch deployments (`*.vercel.app`) when a `vercel.app` domain is listed.
+   > Add each trusted preview deployment URL explicitly. The API intentionally does not wildcard-allow all `*.vercel.app` origins because authentication uses credentialed cookies.
 
 2. **Cross-Site Authentication Cookies**:
    - The auth routes have been updated to set `SameSite: 'None'` and `Secure: true` when `NODE_ENV=production`.
@@ -68,10 +68,11 @@ To connect your deployed Vercel frontend with the backend API:
    CLIENT_URL=https://your-app.vercel.app
    DATABASE_URL=postgresql://user:password@host:5432/event_db?sslmode=require
    REDIS_URL=rediss://default:password@host:6379
-   JWT_SECRET=supersecretdevkey1234567890_min32chars
+   JWT_SECRET=replace-with-a-random-secret-of-at-least-32-characters
    ORGANIZER_EMAIL=organizer@yourdomain.com
-   ORGANIZER_PASSWORD=yourStrongPasswordHere
+   ORGANIZER_PASSWORD=replace-with-a-unique-password-of-at-least-16-characters
    RESEND_API_KEY=re_your_resend_key
+   RESEND_FROM_EMAIL=SeatLock <tickets@your-verified-domain.com>
    ```
 
 ---

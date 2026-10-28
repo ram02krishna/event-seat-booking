@@ -1,9 +1,10 @@
 import { Worker, Job } from 'bullmq';
+import { Prisma } from '@prisma/client';
 import { redisConnection } from '../redis';
 import { prisma } from '../db';
 import { logger } from '../logger';
 import { broadcastSeatsReleased } from '../socket';
-import { HoldExpiryData } from './holdExpiry.queue';
+import { HoldExpiryData, scheduleHoldExpiry } from './holdExpiry.queue';
 
 // Start the worker
 export function startHoldExpiryWorker(): Worker {
@@ -13,44 +14,59 @@ export function startHoldExpiryWorker(): Worker {
       const { eventId, seatIds, userId } = job.data;
       logger.info(`Processing hold expiry job ${job.id} for event ${eventId}`);
 
-      const now = new Date();
+      if (seatIds.length === 0) return;
 
-      // Find seats that are STILL held by this user and expired
-      const expiredSeats = await prisma.eventSeat.findMany({
+      // Release only seats that are still expired at the time of the UPDATE. A separate
+      // find-then-update sequence can race with a new hold and accidentally release that hold.
+      const releasedSeats = await prisma.$queryRaw<Array<{ seatId: string }>>`
+        UPDATE "EventSeat"
+        SET
+          status = 'AVAILABLE'::"SeatStatus",
+          "heldByUserId" = NULL,
+          "holdExpiresAt" = NULL,
+          version = version + 1,
+          "updatedAt" = NOW()
+        WHERE "eventId" = ${eventId}
+          AND "seatId" IN (${Prisma.join(seatIds)})
+          AND "heldByUserId" = ${userId}
+          AND status = 'HELD'::"SeatStatus"
+          AND "holdExpiresAt" <= NOW()
+        RETURNING "seatId";
+      `;
+
+      if (releasedSeats.length > 0) {
+        const releasedSeatIds = releasedSeats.map((seat) => seat.seatId);
+        broadcastSeatsReleased(eventId, { seatIds: releasedSeatIds });
+        redisConnection.del('cache:events:published').catch(() => null);
+        logger.info(`Released ${releasedSeatIds.length} expired seats for event ${eventId}`);
+      } else {
+        logger.info(`No expired seats found for job ${job.id} (already confirmed, released, or renewed)`);
+      }
+
+      // A delayed job may wake slightly before its deadline, or a hold may have been
+      // extended after this job was queued. Schedule another job for any seats still held
+      // by this user, using the earliest current expiry rather than freeing them early.
+      const activeSeats = await prisma.eventSeat.findMany({
         where: {
           eventId,
           seatId: { in: seatIds },
           heldByUserId: userId,
           status: 'HELD',
-          holdExpiresAt: { lte: new Date(now.getTime() + 3000) },
+          holdExpiresAt: { gt: new Date() },
         },
-        select: { id: true, seatId: true },
+        select: { seatId: true, holdExpiresAt: true },
       });
 
-      if (expiredSeats.length === 0) {
-        logger.info(`No expired seats found for job ${job.id} (already confirmed or released)`);
-        return;
+      if (activeSeats.length > 0) {
+        const earliestExpiry = Math.min(
+          ...activeSeats.map((seat) => seat.holdExpiresAt?.getTime() ?? Number.POSITIVE_INFINITY),
+        );
+        const delayMs = Math.max(1000, earliestExpiry - Date.now());
+        await scheduleHoldExpiry(
+          { eventId, seatIds: activeSeats.map((seat) => seat.seatId), userId },
+          delayMs,
+        );
       }
-
-      // Reset expired seats back to AVAILABLE
-      await prisma.eventSeat.updateMany({
-        where: { id: { in: expiredSeats.map((s) => s.id) } },
-        data: {
-          status: 'AVAILABLE',
-          heldByUserId: null,
-          holdExpiresAt: null,
-          version: { increment: 1 },
-        },
-      });
-
-      const releasedSeatIds = expiredSeats.map((s) => s.seatId);
-
-      // Broadcast real-time release to all clients viewing the seat map
-      broadcastSeatsReleased(eventId, { seatIds: releasedSeatIds });
-
-      redisConnection.del('cache:events:published').catch(() => null);
-
-      logger.info(`Released ${releasedSeatIds.length} expired seats for event ${eventId}`);
     },
     {
       connection: redisConnection,

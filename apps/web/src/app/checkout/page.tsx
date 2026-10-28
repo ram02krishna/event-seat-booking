@@ -95,8 +95,12 @@ function CheckoutContent() {
       router.push('/my-tickets?confirmed=1');
     } catch (err: any) {
       if (err instanceof ApiError) {
-        // Rejected for a real reason; a fresh attempt deserves a fresh key
-        idempotencyKey.current = safeUUID();
+        // Only rotate the key after a definite client-side rejection. A 5xx can happen after
+        // the order commits (for example, if QR generation fails), so retry it with the same
+        // key and let the server return the already-confirmed order instead of duplicating work.
+        if (err.status >= 400 && err.status < 500 && err.status !== 401) {
+          idempotencyKey.current = safeUUID();
+        }
         setError(err.message);
       } else {
         // Network trouble: keep the key so retrying is safe
@@ -177,7 +181,7 @@ function CheckoutContent() {
         {eventInfo && (
           <div className="p-4 sm:p-5">
             <p className="eyebrow">Event</p>
-            <p className="mt-1 font-display text-lg sm:text-xl font-semibold">{eventInfo.title}</p>
+            <p className="mt-1 break-words font-display text-lg sm:text-xl font-semibold">{eventInfo.title}</p>
             {eventInfo.startsAt && <p className="text-xs sm:text-sm text-ink-2">{formatEventDateTime(eventInfo.startsAt)}</p>}
           </div>
         )}
@@ -209,7 +213,7 @@ function CheckoutContent() {
         <div className="space-y-4 p-4 sm:p-5">
           {user ? (
             <p className="text-sm text-ink-2">
-              Tickets will be emailed to <span className="font-medium text-ink">{user.email}</span> and saved under My
+              Tickets will be emailed to <span className="break-all font-medium text-ink">{user.email}</span> and saved under My
               tickets.
             </p>
           ) : (

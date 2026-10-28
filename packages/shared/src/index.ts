@@ -82,8 +82,8 @@ export const GenerateSeatsSchema = z.object({
     z.object({
       name: z.string(),
       tier: z.string(),
-      rows: z.array(z.string()),
-      seatsPerRow: z.number().int().positive(),
+      rows: z.array(z.string()).min(1).max(100),
+      seatsPerRow: z.number().int().positive().max(200),
       startY: z.number(),
       rowSpacing: z.number().default(50),
       startX: z.number(),
@@ -108,12 +108,11 @@ export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 // Seat hold schemas
 export const HoldSeatsSchema = z.object({
   seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat').max(6, 'Maximum 6 seats per hold'),
-  idempotencyKey: z.string().optional(),
 });
 export type HoldSeatsInput = z.infer<typeof HoldSeatsSchema>;
 
 export const ReleaseSeatsSchema = z.object({
-  seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat'),
+  seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat').max(6, 'Maximum 6 seats per release'),
 });
 export type ReleaseSeatsInput = z.infer<typeof ReleaseSeatsSchema>;
 
@@ -121,7 +120,7 @@ export type ReleaseSeatsInput = z.infer<typeof ReleaseSeatsSchema>;
 export const ConfirmOrderSchema = z.object({
   eventId: z.string().uuid('Invalid event ID'),
   seatIds: z.array(z.string().uuid('Invalid seat ID')).min(1, 'Select at least one seat').max(6),
-  idempotencyKey: z.string().optional(),
+  idempotencyKey: z.string().uuid('Invalid idempotency key').optional(),
 });
 export type ConfirmOrderInput = z.infer<typeof ConfirmOrderSchema>;
 

@@ -113,7 +113,7 @@ function OrderBlock({
     <article className="card overflow-hidden">
       <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 border-b border-line p-4 sm:p-5">
         <div className="space-y-1 sm:space-y-1.5 min-w-0">
-          <h3 className="font-display text-xl sm:text-2xl font-semibold leading-tight tracking-tight">{order.event.title}</h3>
+          <h3 className="break-words font-display text-xl sm:text-2xl font-semibold leading-tight tracking-tight">{order.event.title}</h3>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-[13px] text-ink-2">
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-ink-3 shrink-0" />

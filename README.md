@@ -269,7 +269,9 @@ The platform enforces a real-world role and security hierarchy:
 
 > **Security Note:** Public registration (`POST /api/auth/register/verify-otp`) strictly assigns the `CUSTOMER` role to prevent unauthorized access to organizer and administrative consoles. Only the authenticated Organizer can provision gate Staff accounts.
 
-### Default Testing Credentials
+### Default Testing Credentials (Local Development Only)
+
+These demo credentials are for a local development database only. Do not use them in production; production startup requires a dedicated organizer email and a unique password of at least 16 characters. The demo seed script deletes existing records and refuses to run with `NODE_ENV=production`.
 
 | Role | Email | Password | Primary Portal / Route |
 |---|---|---|---|

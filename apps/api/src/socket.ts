@@ -23,13 +23,15 @@ export function initSocket(httpServer: HttpServer): Server {
     logger.info(`Client connected to socket: ${socket.id}`);
 
     // Join room for specific event
-    socket.on('join:event', (eventId: string) => {
+    socket.on('join:event', (eventId: unknown) => {
+      if (typeof eventId !== 'string' || eventId.length === 0 || eventId.length > 64) return;
       socket.join(`event:${eventId}`);
       logger.info(`Socket ${socket.id} joined room event:${eventId}`);
     });
 
     // Leave event room
-    socket.on('leave:event', (eventId: string) => {
+    socket.on('leave:event', (eventId: unknown) => {
+      if (typeof eventId !== 'string' || eventId.length === 0 || eventId.length > 64) return;
       socket.leave(`event:${eventId}`);
       logger.info(`Socket ${socket.id} left room event:${eventId}`);
     });

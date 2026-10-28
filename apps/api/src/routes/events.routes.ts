@@ -163,7 +163,7 @@ eventsRouter.get('/:id', async (req: Request, res: Response, next: NextFunction)
       },
     });
 
-    if (!event) {
+    if (!event || event.status !== 'PUBLISHED') {
       return next(new AppError(404, 'Event not found'));
     }
 
@@ -196,7 +196,7 @@ eventsRouter.get('/:id/seats', async (req: Request, res: Response, next: NextFun
       }),
     ]);
 
-    if (!event) {
+    if (!event || event.status !== 'PUBLISHED') {
       return next(new AppError(404, 'Event not found'));
     }
 
@@ -254,14 +254,13 @@ eventsRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id as string;
-      const { seatIds, idempotencyKey } = req.body;
+      const { seatIds } = req.body;
       const userId = req.user!.userId;
 
       const result = await holdSeats({
         eventId,
         seatIds,
         userId,
-        idempotencyKey,
       });
 
       // Broadcast real-time seat hold to all clients in the room

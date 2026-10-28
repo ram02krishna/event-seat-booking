@@ -81,13 +81,17 @@ export default function StaffScannerPage() {
   const [cameraOn, setCameraOn] = useState(false);
   const lastScan = useRef<{ token: string; at: number } | null>(null);
 
-  const validate = useCallback(async (raw: string) => {
+  const validate = useCallback(async (raw: string, source: 'camera' | 'manual' = 'manual') => {
     const token = raw.trim();
     if (!token) return;
 
-    // Cameras report the same code many times a second; ignore repeats for a few seconds
+    // Cameras report the same code many times a second, so ignore camera repeats for a few
+    // seconds. Typed codes are deliberate: always check them and show a result, otherwise a
+    // retry after a failed attempt would silently do nothing.
     const now = Date.now();
-    if (lastScan.current && lastScan.current.token === token && now - lastScan.current.at < 4000) return;
+    if (source === 'camera' && lastScan.current && lastScan.current.token === token && now - lastScan.current.at < 4000) {
+      return;
+    }
     lastScan.current = { token, at: now };
 
     setBusy(true);
@@ -125,7 +129,7 @@ export default function StaffScannerPage() {
     const scanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 240, height: 240 } }, false);
     scanner.render(
       (text) => {
-        validateRef.current(text);
+        validateRef.current(text, 'camera');
         setCameraOn(false);
       },
       () => {
@@ -202,7 +206,7 @@ export default function StaffScannerPage() {
               {result.attendee.eventTitle && (
                 <div className="flex justify-between gap-4">
                   <dt className="text-ink-3">Event</dt>
-                  <dd className="text-right">{result.attendee.eventTitle}</dd>
+                  <dd className="min-w-0 break-words text-right">{result.attendee.eventTitle}</dd>
                 </div>
               )}
               {result.checkedInAt && (

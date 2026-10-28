@@ -33,10 +33,33 @@ if (!parsed.success) {
 
 if (parsed.data.NODE_ENV === 'production') {
   const problems: string[] = [];
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-    problems.push('JWT_SECRET must be set to a random string of at least 32 characters');
+  const jwtSecret = process.env.JWT_SECRET || '';
+  if (
+    jwtSecret.length < 32 ||
+    jwtSecret === 'supersecretdevkey1234567890_min32chars' ||
+    jwtSecret.toLowerCase().startsWith('replace-with-')
+  ) {
+    problems.push('JWT_SECRET must be set to a unique random string of at least 32 characters');
   }
   if (!process.env.DATABASE_URL) problems.push('DATABASE_URL must be set');
+  const clientOrigins = (process.env.CLIENT_URL || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (!clientOrigins.length || clientOrigins.some((origin) => origin === '*' || !/^https:\/\/[^/]+$/.test(origin))) {
+    problems.push('CLIENT_URL must list exact trusted HTTPS frontend origins (no wildcards or paths)');
+  }
+  if (!process.env.REDIS_URL) problems.push('REDIS_URL must be set');
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.toLowerCase().startsWith('re_your_')) {
+    problems.push('RESEND_API_KEY must be set because registration and password reset require email delivery');
+  }
+  if (!process.env.RESEND_FROM_EMAIL?.trim()) {
+    problems.push('RESEND_FROM_EMAIL must be set to a sender address verified with Resend');
+  }
+  if (!process.env.ORGANIZER_EMAIL?.trim()) {
+    problems.push('ORGANIZER_EMAIL must be set to your production organizer account email');
+  }
+  const organizerPassword = process.env.ORGANIZER_PASSWORD || '';
+  if (organizerPassword.length < 16 || organizerPassword.toLowerCase().startsWith('replace-with-')) {
+    problems.push('ORGANIZER_PASSWORD must be set to a unique password of at least 16 characters');
+  }
   if (problems.length > 0) {
     console.error(`Refusing to start in production:\n - ${problems.join('\n - ')}`);
     process.exit(1);
