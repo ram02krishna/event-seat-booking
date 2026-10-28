@@ -39,6 +39,10 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
     config.CLIENT_TICKETS_URL ||
     'https://seat-lock.vercel.app/my-tickets';
 
+  const qrBaseUrl =
+    config.QR_CODE_API_URL ||
+    'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=';
+
   const formattedDate = new Date(startsAt).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -48,51 +52,57 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
     minute: '2-digit',
   });
 
-  const tierColors: Record<string, { bg: string; text: string; border: string }> = {
+  const tierConfig: Record<string, { bg: string; text: string; border: string }> = {
     VIP: { bg: '#fef3c7', text: '#92400e', border: '#fde68a' },
-    PREMIUM: { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' },
-    STANDARD: { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' },
+    PREMIUM: { bg: '#e6f7f5', text: '#0e6a62', border: '#a7f3d0' },
+    STANDARD: { bg: '#f1f5f9', text: '#334155', border: '#cbd5e1' },
   };
 
   const ticketsHtml = tickets
-    .map((t, index) => {
+    .map((t) => {
       const token = t.qrToken || t.ticketId;
-      const qrContentId = `ticket-qr-${index}`;
-      const tierStyle = tierColors[t.tier] || tierColors.STANDARD;
+      const tierStyle = tierConfig[t.tier.toUpperCase()] || tierConfig.STANDARD;
+      const qrImageUrl = `${qrBaseUrl}${encodeURIComponent(token)}`;
 
       return `
-        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <div style="background-color: #ffffff; border: 1px solid #dfe4ec; border-radius: 12px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 2px 4px rgba(16, 22, 34, 0.04);">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
             <tr>
-              <td valign="top" style="padding-right: 14px;">
-                <div style="margin-bottom: 6px;">
-                  <span style="background-color: ${tierStyle.bg}; color: ${tierStyle.text}; border: 1px solid ${tierStyle.border}; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px; display: inline-block;">
+              <td valign="top" style="padding: 16px 18px;">
+                <div style="margin-bottom: 8px;">
+                  <span style="background-color: ${tierStyle.bg}; color: ${tierStyle.text}; border: 1px solid ${tierStyle.border}; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; display: inline-block; vertical-align: middle; margin-right: 6px;">
                     ${escapeHtml(t.tier)}
                   </span>
+                  <span style="background-color: #ddf3e7; color: #168050; border: 1px solid #bbf7d0; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 7px; border-radius: 4px; letter-spacing: 0.5px; display: inline-block; vertical-align: middle;">
+                    ● Valid
+                  </span>
                 </div>
-                <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+                <div style="font-size: 18px; font-weight: 800; color: #101622; margin-bottom: 4px; letter-spacing: -0.3px;">
                   ${escapeHtml(t.seatLabel)}
                 </div>
-                <div style="font-size: 15px; font-weight: 700; color: #059669; margin-bottom: 10px;">
-                  ₹${(t.priceCents / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <div style="font-size: 15px; font-weight: 700; color: #168050; margin-bottom: 12px;">
+                  ₹${(t.priceCents / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 11px; color: #334155; word-break: break-all;">
-                  <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px;">Ticket Token:</span>
-                  <span style="color: #4f46e5; font-weight: 600;">${escapeHtml(token)}</span>
+                <div style="background-color: #f8fafc; border: 1px solid #dfe4ec; border-radius: 6px; padding: 7px 10px; font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 11px; word-break: break-all;">
+                  <span style="color: #626e82; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Ticket Token</span>
+                  <span style="color: #2554d6; font-weight: 600;">${escapeHtml(token)}</span>
                 </div>
               </td>
-              <td width="116" valign="top" align="center" style="width: 116px; min-width: 116px;">
-                <div style="background-color: #ffffff; padding: 6px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); display: inline-block;">
+              <td width="130" valign="middle" align="center" style="width: 130px; min-width: 130px; background-color: #fafbfc; border-left: 2px dashed #dfe4ec; padding: 14px 10px;">
+                <div style="font-size: 9px; font-weight: 700; color: #626e82; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; text-align: center;">
+                  Gate Scan Pass
+                </div>
+                <div style="background-color: #ffffff; padding: 6px; border: 1px solid #dfe4ec; border-radius: 8px; box-shadow: 0 1px 3px rgba(16, 22, 34, 0.05); display: inline-block;">
                   <img
-                    src="cid:${qrContentId}"
+                    src="${qrImageUrl}"
                     width="104"
                     height="104"
                     alt="Ticket QR Code"
-                    style="display: block; width: 104px; height: 104px; border: 0;"
+                    style="display: block; width: 104px; height: 104px; border: 0; outline: none; border-radius: 4px;"
                   />
                 </div>
-                <div style="font-size: 10px; font-weight: 600; color: #64748b; margin-top: 5px; text-align: center;">
-                  Gate Scan Pass
+                <div style="font-size: 10px; font-weight: 600; color: #168050; margin-top: 6px; text-align: center;">
+                  Turnstile Ready
                 </div>
               </td>
             </tr>
@@ -108,58 +118,92 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Booking Confirmed - ${escapeHtml(eventTitle)}</title>
       </head>
-      <body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
-        <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
+      <body style="margin: 0; padding: 28px 12px; background-color: #f3f5f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #101622;">
+        <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #dfe4ec; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(16, 22, 34, 0.08);">
           
-          <!-- Header Bar -->
-          <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 26px 20px; text-align: center;">
-            <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #ffffff; margin-bottom: 8px;">
-              Official Ticket Pass
+          <!-- Header Bar with SeatLock dark branding -->
+          <div style="background-color: #0b0e14; padding: 26px 24px; border-bottom: 1px solid #1e2638;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td valign="middle">
+                  <!-- SeatLock SeatMark Logo Icon -->
+                  <table cellpadding="0" cellspacing="0" border="0" style="display: inline-table; vertical-align: middle; margin-right: 8px;">
+                    <tr>
+                      <td align="center" style="padding-bottom: 2px;">
+                        <div style="width: 14px; height: 5px; background-color: #2554d6; border-radius: 3px;"></div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center">
+                        <div style="width: 18px; height: 6px; background-color: #2554d6; opacity: 0.6; border-radius: 3px;"></div>
+                      </td>
+                    </tr>
+                  </table>
+                  <span style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.4px; vertical-align: middle;">
+                    SeatLock
+                  </span>
+                </td>
+                <td align="right" valign="middle">
+                  <span style="background-color: rgba(22, 128, 80, 0.18); border: 1px solid rgba(22, 128, 80, 0.4); color: #4ade80; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; letter-spacing: 0.5px; display: inline-block;">
+                    ● Verified Booking
+                  </span>
+                </td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 18px; text-align: left;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; line-height: 1.2;">
+                Booking Confirmed!
+              </h1>
+              <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">
+                Order #${orderId.slice(0, 8).toUpperCase()} &bull; Official Gate Pass Issued
+              </p>
             </div>
-            <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">
-              Booking Confirmed!
-            </h1>
-            <p style="margin: 6px 0 0 0; font-size: 13px; color: #e0e7ff;">
-              Order #${orderId.slice(0, 8)} &bull; Confirmed &amp; Issued
-            </p>
           </div>
 
           <div style="padding: 24px 20px; background-color: #ffffff;">
             <!-- Event Summary Box -->
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 22px;">
-              <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #0f172a; font-weight: 700;">
+            <div style="background-color: #f8fafc; border: 1px solid #dfe4ec; border-radius: 12px; padding: 16px 18px; margin-bottom: 22px;">
+              <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #101622; font-weight: 700; letter-spacing: -0.3px;">
                 ${escapeHtml(eventTitle)}
               </h2>
-              <div style="font-size: 13px; color: #475569; margin-bottom: 6px; line-height: 1.4;">
-                📍 <strong>Venue:</strong> ${escapeHtml(venueName)}
+              <div style="font-size: 13px; color: #3e495c; margin-bottom: 6px; line-height: 1.5;">
+                📍 <strong style="color: #101622;">Venue:</strong> ${escapeHtml(venueName)}
               </div>
-              <div style="font-size: 13px; color: #475569; line-height: 1.4;">
-                📅 <strong>Date:</strong> ${escapeHtml(formattedDate)}
+              <div style="font-size: 13px; color: #3e495c; line-height: 1.5;">
+                📅 <strong style="color: #101622;">Date:</strong> ${escapeHtml(formattedDate)}
               </div>
             </div>
 
             <!-- Tickets Section -->
-            <div style="margin-bottom: 24px;">
-              <h3 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">
+            <div style="margin-bottom: 22px;">
+              <div style="margin: 0 0 12px 0; font-size: 11px; font-weight: 700; color: #626e82; text-transform: uppercase; letter-spacing: 0.8px;">
                 Your Tickets (${tickets.length})
-              </h3>
+              </div>
               ${ticketsHtml}
             </div>
 
-            <!-- CTA Button -->
-            <div style="text-align: center; margin: 26px 0 10px 0;">
+            <!-- Fast-Track Turnstile Entry Notice -->
+            <div style="background-color: #ddf3e7; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 22px; font-size: 12px; color: #166534; line-height: 1.5;">
+              🎟️ <strong>Admission Notice:</strong> Present the QR code above on your mobile phone at the entrance turnstile for direct entry. No printed ticket is needed.
+            </div>
+
+            <!-- CTA Button in SeatLock Royal Blue -->
+            <div style="text-align: center; margin: 24px 0 12px 0;">
               <a
                 href="${escapeHtml(viewTicketsUrl)}"
-                style="display: inline-block; background-color: #4f46e5; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);"
+                style="display: inline-block; background-color: #2554d6; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 13px 32px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 84, 214, 0.28);"
               >
                 View Tickets in Web App &rarr;
               </a>
             </div>
 
-            <div style="font-size: 12px; color: #64748b; margin-top: 24px; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 18px;">
-              Please present this email with the QR code at the entrance turnstile for admission.<br />
-              If you have any questions, access your tickets online or contact support.
+            <!-- Footer -->
+            <div style="font-size: 12px; color: #626e82; margin-top: 24px; text-align: center; line-height: 1.5; border-top: 1px solid #dfe4ec; padding-top: 18px;">
+              Have questions or need to manage your booking? Access your tickets online in SeatLock.<br />
+              &copy; SeatLock. Real-time Event Seating &amp; Ticketing.
             </div>
           </div>
         </div>
@@ -180,21 +224,13 @@ export async function sendTicketConfirmationEmail(params: SendTicketsEmailParams
       config.RESEND_FROM_EMAIL ||
       'SeatLock <security@ram02krishna.me>';
 
-    // Embed locally generated QR images as inline email attachments. Sending tokens to an
-    // external QR image URL would leak reusable admission credentials to a third party.
-    const attachments = tickets.map((ticket, index) => ({
-      filename: `ticket-${index + 1}.png`,
-      content: ticket.qrDataUrl.replace(/^data:image\/png;base64,/, ''),
-      contentType: 'image/png',
-      contentId: `ticket-qr-${index}`,
-    }));
-
+    // Notice: No file attachments are passed so that email clients (e.g. Gmail) don't display
+    // attachment download bars or scan notices, and the QR code renders cleanly inline via URL.
     const result = await resend.emails.send({
       from: fromEmail,
       to: recipient,
-      subject: `Your Tickets for ${eventTitle} (Order #${orderId.slice(0, 8)})`,
+      subject: `Your Tickets for ${eventTitle} (Order #${orderId.slice(0, 8).toUpperCase()})`,
       html,
-      attachments,
     });
 
     if (result.error) {
@@ -238,38 +274,66 @@ export async function sendOtpEmail(params: SendOtpEmailParams): Promise<SendEmai
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
       </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; padding: 32px 16px;">
-        <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f5f8; color: #101622; margin: 0; padding: 32px 16px;">
+        <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #dfe4ec; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(16, 22, 34, 0.08);">
           
-          <!-- Header Bar -->
-          <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 26px 20px; text-align: center;">
-            <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #ffffff; margin-bottom: 8px;">
-              Security Verification
+          <!-- Header Bar with SeatLock dark branding -->
+          <div style="background-color: #0b0e14; padding: 26px 24px; border-bottom: 1px solid #1e2638;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td valign="middle">
+                  <!-- SeatLock SeatMark Logo Icon -->
+                  <table cellpadding="0" cellspacing="0" border="0" style="display: inline-table; vertical-align: middle; margin-right: 8px;">
+                    <tr>
+                      <td align="center" style="padding-bottom: 2px;">
+                        <div style="width: 14px; height: 5px; background-color: #2554d6; border-radius: 3px;"></div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center">
+                        <div style="width: 18px; height: 6px; background-color: #2554d6; opacity: 0.6; border-radius: 3px;"></div>
+                      </td>
+                    </tr>
+                  </table>
+                  <span style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.4px; vertical-align: middle;">
+                    SeatLock
+                  </span>
+                </td>
+                <td align="right" valign="middle">
+                  <span style="background-color: rgba(37, 84, 214, 0.18); border: 1px solid rgba(37, 84, 214, 0.4); color: #93c5fd; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; letter-spacing: 0.5px; display: inline-block;">
+                    Security Verification
+                  </span>
+                </td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 18px; text-align: left;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">
+                ${title}
+              </h1>
             </div>
-            <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">
-              ${title}
-            </h1>
           </div>
 
           <div style="padding: 28px 24px; text-align: center; background-color: #ffffff;">
-            <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569; line-height: 1.5;">
+            <p style="margin: 0 0 20px 0; font-size: 14px; color: #3e495c; line-height: 1.5;">
               ${subtitle}
             </p>
 
-            <!-- OTP Code Badge -->
-            <div style="margin: 16px 0 22px 0; padding: 16px 28px; background-color: #f8fafc; border: 2px dashed #6366f1; border-radius: 12px; display: inline-block;">
-              <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #4338ca;">
+            <!-- OTP Code Badge in SeatLock Royal Blue -->
+            <div style="margin: 16px 0 22px 0; padding: 16px 28px; background-color: #f8fafc; border: 2px dashed #2554d6; border-radius: 12px; display: inline-block;">
+              <span style="font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #2554d6;">
                 ${otp}
               </span>
             </div>
 
-            <p style="margin: 0; font-size: 13px; color: #64748b;">
-              This code will expire in <strong style="color: #0f172a;">10 minutes</strong>.
+            <p style="margin: 0; font-size: 13px; color: #626e82;">
+              This code will expire in <strong style="color: #101622;">10 minutes</strong>.
             </p>
 
-            <div style="font-size: 12px; color: #94a3b8; margin-top: 26px; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+            <div style="font-size: 12px; color: #626e82; margin-top: 26px; text-align: center; line-height: 1.5; border-top: 1px solid #dfe4ec; padding-top: 16px;">
               If you did not request this verification code, please ignore this email.<br />
-              Never share this one-time code with anyone.
+              Never share this one-time code with anyone.<br />
+              &copy; SeatLock. All rights reserved.
             </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ const envSchema = z.object({
   RESEND_TICKETS_FROM_EMAIL: z.string().optional(),
   RESEND_OVERRIDE_EMAIL: z.string().optional(),
   CLIENT_TICKETS_URL: z.string().optional(),
+  QR_CODE_API_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
