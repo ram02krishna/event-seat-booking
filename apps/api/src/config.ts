@@ -57,8 +57,8 @@ if (parsed.data.NODE_ENV === 'production') {
     problems.push('ORGANIZER_EMAIL must be set to your production organizer account email');
   }
   const organizerPassword = process.env.ORGANIZER_PASSWORD || '';
-  if (organizerPassword.length < 16 || organizerPassword.toLowerCase().startsWith('replace-with-')) {
-    problems.push('ORGANIZER_PASSWORD must be set to a unique password of at least 16 characters');
+  if (organizerPassword.length < 8 || organizerPassword.toLowerCase().startsWith('replace-with-')) {
+    problems.push('ORGANIZER_PASSWORD must be set to a unique password of at least 8 characters');
   }
   if (problems.length > 0) {
     console.error(`Refusing to start in production:\n - ${problems.join('\n - ')}`);

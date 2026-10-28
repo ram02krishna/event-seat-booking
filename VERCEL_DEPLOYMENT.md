@@ -70,7 +70,7 @@ To connect your deployed Vercel frontend with the backend API:
    REDIS_URL=rediss://default:password@host:6379
    JWT_SECRET=replace-with-a-random-secret-of-at-least-32-characters
    ORGANIZER_EMAIL=organizer@yourdomain.com
-   ORGANIZER_PASSWORD=replace-with-a-unique-password-of-at-least-16-characters
+   ORGANIZER_PASSWORD=replace-with-a-unique-password-of-at-least-8-characters
    RESEND_API_KEY=re_your_resend_key
    RESEND_FROM_EMAIL=SeatLock <tickets@your-verified-domain.com>
    ```
